@@ -47,7 +47,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
     FIXME("function 0x%x is unimplemented!\n", offset);
-    return NVAPI_ERROR;
+    return NVAPI_NO_IMPLEMENTATION;
 }
 
 #ifdef __i386__
@@ -212,7 +212,7 @@ static void free_thunks(void)
 static NvAPI_Status CDECL unimplemented_stub()
 {
     FIXME("function is unimplemented!\n");
-    return NVAPI_ERROR;
+    return NVAPI_NO_IMPLEMENTATION;
 }
 
 static void* get_thunk_function(unsigned int offset)
@@ -240,7 +240,7 @@ static NvAPI_Status CDECL NvAPI_Initialize(void)
     return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_Unknown1(NV_UNKNOWN_1 *param)
+static NvAPI_Status CDECL NvAPI_GPU_CudaEnumComputeCapableGpus(NV_UNKNOWN_1 *param)
 {
     TRACE("(%p)\n", param);
 
@@ -252,12 +252,12 @@ static NvAPI_Status CDECL NvAPI_Unknown1(NV_UNKNOWN_1 *param)
 
     param->gpu_count = 1;
     param->gpus[0].gpuHandle = FAKE_PHYSICAL_GPU;
-    param->gpus[0].unknown2 = 11;
+    param->gpus[0].GetGPUIDfromPhysicalGPU = 11;
 
     return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_Unknown2(NvPhysicalGpuHandle gpuHandle, NvPhysicalGpuHandle *retHandle)
+static NvAPI_Status CDECL NvAPI_GetGPUIDfromPhysicalGPU(NvPhysicalGpuHandle gpuHandle, NvPhysicalGpuHandle *retHandle)
 {
     TRACE("(%p, %p)\n", gpuHandle, retHandle);
 
@@ -278,7 +278,7 @@ static NvAPI_Status CDECL NvAPI_Unknown2(NvPhysicalGpuHandle gpuHandle, NvPhysic
     return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_Unknown3(NvPhysicalGpuHandle gpuHandle, NvPhysicalGpuHandle *retHandle)
+static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromGPUID(NvPhysicalGpuHandle gpuHandle, NvPhysicalGpuHandle *retHandle)
 {
     TRACE("(%p, %p)\n", gpuHandle, retHandle);
 
@@ -298,10 +298,10 @@ static NvAPI_Status CDECL NvAPI_Unknown3(NvPhysicalGpuHandle gpuHandle, NvPhysic
 
 static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
 {
-    NvAPI_ShortString build_str = {'r','3','3','7','_','0','0','-','1','8','9',0};
-    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','9','9','9',' ','G','T','X', 0};
+    NvAPI_ShortString build_str = {'r','4','1','7','_','0','0','-','1','8','9',0};
+    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','9','7','0',' ','G','T','X', 0};
     /* TODO: find a good way to get the graphic card name, EnumDisplayDevices is useless in Wine */
-    /* For now we return the non existing GeForce 999 GTX as graphic card name */
+    /* For now we return GeForce 970 GTX as graphic card name */
 
     TRACE("(%p, %p)\n", hNvDisplay, pVersion);
 
@@ -314,7 +314,7 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     if (!pVersion)
         return NVAPI_INVALID_ARGUMENT;
 
-    pVersion->drvVersion = 33788;
+    pVersion->drvVersion = 41742;
     pVersion->bldChangeListNum = 0;
     memcpy(pVersion->szBuildBranchString, build_str, sizeof(build_str));
     memcpy(pVersion->szAdapterString, adapter, sizeof(adapter));
@@ -343,7 +343,7 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUsFromDisplay(NvDisplayHandle hNvDi
 static NvAPI_Status CDECL NvAPI_Stereo_Disable(void)
 {
     TRACE("()\n");
-    return NVAPI_OK;
+    return NVAPI_NO_IMPLEMENTATION;
 }
 
 static NvAPI_Status CDECL NvAPI_Stereo_IsEnabled(NvU8 *pIsStereoEnabled)
@@ -477,7 +477,7 @@ static NvAPI_Status CDECL NvAPI_EnumPhysicalGPUs(NvPhysicalGpuHandle gpuHandle[N
 
 static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szName)
 {
-    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','9','9','9',' ','G','T','X', 0};
+    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','9','7','0',' ','G','T','X', 0};
 
     TRACE("(%p, %p)\n", hPhysicalGpu, szName);
 
@@ -524,7 +524,7 @@ static NvAPI_Status CDECL NvAPI_EnumNvidiaDisplayHandle(NvU32 thisEnum, NvDispla
 
 static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVersion, NvAPI_ShortString szBuildBranchString)
 {
-    NvAPI_ShortString build_str = {'r','3','3','7','_','0','0',0};
+    NvAPI_ShortString build_str = {'r','4','1','7','_','0','0',0};
 
     TRACE("(%p, %p)\n", pDriverVersion, szBuildBranchString);
 
@@ -532,7 +532,7 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVers
         return NVAPI_INVALID_POINTER;
 
     memcpy(szBuildBranchString, build_str, sizeof(build_str));
-    *pDriverVersion = 33788;
+    *pDriverVersion = 41742;
 
     return NVAPI_OK;
 }
@@ -583,6 +583,59 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
     return NVAPI_OK;
 }
 
+/* Cybmax */
+static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle hPhysicalGPU, NV_GPU_CLOCK_FREQUENCIES_VER *pClkFreqs)
+{
+    TRACE("(%p, %p)\n", hPhysicalGPU, pClkFreqs);
+
+    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGPU);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    /* Attempt to fake 700MHz gpu */
+    pClkFreqs->domain[0].frequency = 700000;
+     return NVAPI_OK;
+}
+
+/* Fakes "Desktop" SystemType */
+static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pSystemType)
+{
+    TRACE("(%p, %p)\n", hPhysicalGPU, pSystemType);
+
+    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGPU);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    *pSystemType = 2;
+    return NVAPI_OK;
+}
+
+/* Fake nVidia BIOS Version */
+static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szBiosRevision)
+{
+    NvAPI_ShortString version = {'8','4','.','0','4','.','1','F','.','0','0','.','0','1',0};
+
+    TRACE("(%p, %p)\n", hPhysicalGpu, szBiosRevision);
+
+    if (!hPhysicalGpu)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_INVALID_HANDLE;
+    }
+
+    if (!szBiosRevision)
+        return NVAPI_INVALID_ARGUMENT;
+
+    memcpy(szBiosRevision, version, sizeof(version));
+    return NVAPI_OK;
+}
+
 static NvAPI_Status CDECL NvAPI_D3D_GetObjectHandleForResource(IUnknown *pDevice, IUnknown *pResource, NVDX_ObjectHandle *pHandle)
 {
     FIXME("(%p, %p, %p): stub\n", pDevice, pResource, pHandle);
@@ -593,6 +646,60 @@ static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResou
 {
     FIXME("(%p): stub\n", pResource);
     return NVAPI_ERROR;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetPCIEInfo(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetShortName(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromDisplay(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_PhysxQueryRecommendedState(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetAllClocks(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetManufacturingInfo(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(void)
+{
+    TRACE("()\n");
+    return NVAPI_INVALID_ARGUMENT;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetRamType(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
 }
 
 static NvU32 get_video_memory(void)
@@ -776,9 +883,9 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
     {
         {0x0150E828, NvAPI_Initialize},
         {0xF951A4D1, NvAPI_GetDisplayDriverVersion},
-        {0x5786cc6e, NvAPI_Unknown1},
-        {0x6533ea3e, NvAPI_Unknown2},
-        {0x5380ad1a, NvAPI_Unknown3},
+        {0x5786cc6e, NvAPI_GPU_CudaEnumComputeCapableGpus},
+        {0x6533ea3e, NvAPI_GetGPUIDfromPhysicalGPU},
+        {0x5380ad1a, NvAPI_GetPhysicalGPUFromGPUID},
         {0x35c29134, NvAPI_GetAssociatedNvidiaDisplayHandle},
         {0x34ef9506, NvAPI_GetPhysicalGPUsFromDisplay},
         {0x2ec50c2b, NvAPI_Stereo_Disable},
@@ -810,6 +917,18 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x46fbeb03, NvAPI_GPU_GetPhysicalFrameBufferSize},
         {0x5a04b644, NvAPI_GPU_GetVirtualFrameBufferSize},
         {0xc7026a87, NvAPI_GPU_GetGpuCoreCount},
+	{0xe3795199, NvAPI_GPU_GetPCIEInfo},
+	{0xd988f0f3, NvAPI_GPU_GetShortName},
+	{0x1890e8da, NvAPI_GetPhysicalGPUFromDisplay},
+	{0x7a4174f4, NvAPI_GPU_PhysxQueryRecommendedState},
+	{0x1bd69f49, NvAPI_GPU_GetAllClocks},
+	{0xa4218928, NvAPI_GPU_GetManufacturingInfo},
+	{0x35B5fd2f, NvAPI_GPU_GetTargetID},
+	{0xe3640a56, NvAPI_GPU_GetThermalSettings},
+	{0x57F7caac, NvAPI_GPU_GetRamType},
+	{0xdcb616c3, NvAPI_GPU_GetAllClockFrequencies},
+	{0xbaaabfcc, NvAPI_GPU_GetSystemType},
+	{0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
 #ifdef MESON_BUILD_D3D11
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},

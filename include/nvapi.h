@@ -28,6 +28,7 @@ typedef unsigned int NvU32;
 
 #define NVAPI_OK 0
 #define NVAPI_ERROR -1
+#define NVAPI_NO_IMPLEMENTATION -3
 #define NVAPI_INVALID_ARGUMENT -5
 #define NVAPI_NVIDIA_DEVICE_NOT_FOUND -6
 #define NVAPI_END_ENUMERATION -7
@@ -39,11 +40,14 @@ typedef unsigned int NvU32;
 #define NVAPI_NO_ACTIVE_SLI_TOPOLOGY -113
 #define NVAPI_STEREO_NOT_INITIALIZED -140
 #define NVAPI_UNREGISTERED_RESOURCE -170
+#define NVAPI_FIRMWARE_OUT_OF_DATE -199
 
 #define NVAPI_SHORT_STRING_MAX 64
 #define NVAPI_PHYSICAL_GPUS 32
 #define NVAPI_MAX_PHYSICAL_GPUS 64
 #define NVAPI_MAX_LOGICAL_GPUS 64
+#define NVAPI_MAX_GPU_CLOCKS 32
+#define NVAPI_MAX_GPU_PUBLIC_CLOCKS 32
 #define NVAPI_ADVANCED_DISPLAY_HEADS 4
 #define NVAPI_MAX_DISPLAYS (NVAPI_PHYSICAL_GPUS * NVAPI_ADVANCED_DISPLAY_HEADS)
 
@@ -74,6 +78,23 @@ typedef struct
     NvAPI_ShortString  szBuildBranchString;
     NvAPI_ShortString  szAdapterString;
 } NV_DISPLAY_DRIVER_VERSION;
+
+typedef struct
+{
+    NvU32		version;
+    NvU32		ClockType:2;
+    NvU32		reserved:22;
+    NvU32		reserved1:8;
+    struct {
+        NvU32   bIsPresent:1;
+        NvU32   reserved:31;
+        NvU32   frequency;
+    }domain[NVAPI_MAX_GPU_PUBLIC_CLOCKS];
+} NV_GPU_CLOCK_FREQUENCIES_V2;
+
+typedef NV_GPU_CLOCK_FREQUENCIES_V2 NV_GPU_CLOCK_FREQUENCIES;
+
+#define NV_GPU_CLOCK_FREQUENCIES_VER NV_GPU_CLOCK_FREQUENCIES_V2
 
 #define NV_DISPLAY_DRIVER_VERSION_VER MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_VERSION, 1)
 
@@ -114,7 +135,7 @@ typedef struct
     struct
     {
         NvPhysicalGpuHandle gpuHandle;
-        NvU32 unknown2;
+        NvU32 GetGPUIDfromPhysicalGPU;
     } gpus[8];
 }NV_UNKNOWN_1;
 

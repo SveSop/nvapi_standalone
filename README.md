@@ -23,3 +23,19 @@ For a x86_64 WINEPREFIX you need to run BOTH scripts!
 
 
 This creates symlinks in the wineprefix + creates dll-override that ENABLE nvapi. This is known to cause problems when using DXVK!  
+
+## Goal  
+
+The aim is to provide some more functions to NvAPI so that it will fake my GTX970 as best it can.
+
+## Changes
+
+* Updated faked driverversion to 417 revision + change to GTX 970  
+* Added the NvAPI_GPU_GetSystemType to set "Desktop"  
+* Added NvAPI_GPU_GetVbiosVersionString to output version: BIOS: 84.04.1F.00.01  
+* Updated and added a couple of (so far empty) functions.  
+
+## Working on  
+
+* Trying to fake GPU MHz and VRAM MHz clocks  
+

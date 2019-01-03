@@ -34,9 +34,9 @@
 static void* (CDECL *pnvapi_QueryInterface)(unsigned int offset);
 static NvAPI_Status (CDECL *pNvAPI_Initialize)(void);
 static NvAPI_Status (CDECL *pNvAPI_GetDisplayDriverVersion)(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion);
-static NvAPI_Status (CDECL *pNvAPI_unknown1)(void* param0);
-static NvAPI_Status (CDECL *pNvAPI_unknown2)(NvPhysicalGpuHandle gpuHandle, void *param1);
-static NvAPI_Status (CDECL *pNvAPI_unknown3)(void *param0, void *param1);
+static NvAPI_Status (CDECL *pNvAPI_GPU_CudaEnumComputeCapableGpus)(void* param0);
+static NvAPI_Status (CDECL *pNvAPI_GetGPUIDfromPhysicalGPU)(NvPhysicalGpuHandle gpuHandle, void *param1);
+static NvAPI_Status (CDECL *pNvAPI_GetPhysicalGPUFromGPUID)(void *param0, void *param1);
 static NvAPI_Status (CDECL *pNvAPI_EnumLogicalGPUs_unknown)(NvLogicalGpuHandle nvGPUHandle[NVAPI_MAX_LOGICAL_GPUS], NvU32 *pGpuCount);
 static NvAPI_Status (CDECL *pNvAPI_EnumLogicalGPUs)(NvLogicalGpuHandle nvGPUHandle[NVAPI_MAX_LOGICAL_GPUS], NvU32 *pGpuCount);
 static NvAPI_Status (CDECL *pNvAPI_GetPhysicalGPUsFromLogicalGPU)(NvLogicalGpuHandle hLogicalGPU, NvPhysicalGpuHandle hPhysicalGPU[NVAPI_MAX_PHYSICAL_GPUS], NvU32 *pGpuCount);
@@ -60,9 +60,9 @@ function_list[] =
 {
     {0x0150E828, (void**) &pNvAPI_Initialize},
     {0xF951A4D1, (void**) &pNvAPI_GetDisplayDriverVersion},
-    {0x5786cc6e, (void**) &pNvAPI_unknown1},
-    {0x6533ea3e, (void**) &pNvAPI_unknown2},
-    {0x5380ad1a, (void**) &pNvAPI_unknown3},
+    {0x5786cc6e, (void**) &pNvAPI_GPU_CudaEnumComputeCapableGpus},
+    {0x6533ea3e, (void**) &pNvAPI_GetGPUIDfromPhysicalGPU},
+    {0x5380ad1a, (void**) &pNvAPI_GetPhysicalGPUFromGPUID},
     {0xfb9bc2ab, (void**) &pNvAPI_EnumLogicalGPUs_unknown},
     {0x48b3ea59, (void**) &pNvAPI_EnumLogicalGPUs},
     {0xaea3fa32, (void**) &pNvAPI_GetPhysicalGPUsFromLogicalGPU},
@@ -167,24 +167,24 @@ static void test_GetDisplayDriverVersion(void)
                  gpuName, version.szAdapterString);
 }
 
-static void test_unknown1(void)
+static void test_GPU_CudaEnumComputeCapableGpus(void)
 {
     NV_UNKNOWN_1 test;
     NvAPI_Status status;
     int i;
 
-    if (!pNvAPI_unknown1)
+    if (!pNvAPI_GPU_CudaEnumComputeCapableGpus)
     {
-        win_skip("pNvAPI_unknown1 export not found.\n");
+        win_skip("pNvAPI_GPU_CudaEnumComputeCapableGpus export not found.\n");
         return;
     }
 
-    status = pNvAPI_unknown1(NULL);
+    status = pNvAPI_GPU_CudaEnumComputeCapableGpus(NULL);
     ok(status == NVAPI_INVALID_ARGUMENT, "Expected status NVAPI_INVALID_ARGUMENT, got %d\n", status);
 
     memset(&test, 0, sizeof(test));
     test.version = NV_UNKNOWN_1_VER;
-    status = pNvAPI_unknown1(&test);
+    status = pNvAPI_GPU_CudaEnumComputeCapableGpus(&test);
 
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
     ok(test.gpu_count > 0, "Expected gpu_count > 0, got %d\n", test.gpu_count);
@@ -192,108 +192,108 @@ static void test_unknown1(void)
     for (i = 0; i < test.gpu_count; i++)
     {
         ok(test.gpus[i].gpuHandle != NULL, "Expected gpus[%d].gpuHandle != 0, got %p\n", i, test.gpus[i].gpuHandle);
-        ok(test.gpus[i].unknown2 != 0, "Expected gpus[%d].unknown2 != 0, got %d\n", i, test.gpus[i].unknown2);
+        ok(test.gpus[i].GetGPUIDfromPhysicalGPU != 0, "Expected gpus[%d].GetGPUIDfromPhysicalGPU != 0, got %d\n", i, test.gpus[i].unknown2);
     }
 
     for (; i < sizeof(test.gpus) / sizeof(test.gpus[0]); i++)
     {
         ok(test.gpus[i].gpuHandle == NULL, "Expected gpus[%d].gpuHandle == NULL, got %p\n", i, test.gpus[i].gpuHandle);
-        ok(test.gpus[i].unknown2 == 0, "Expected gpus[%d].unknown2 == 0, got %d\n", i, test.gpus[i].unknown2);
+        ok(test.gpus[i].GetGPUIDfromPhysicalGPU == 0, "Expected gpus[%d].GetGPUIDfromPhysicalGPU == 0, got %d\n", i, test.gpus[i].unknown2);
     }
 }
 
-static void test_unknown2(void)
+static void test_GetGPUIDfromPhysicalGPU(void)
 {
     NV_UNKNOWN_1 test;
     NvAPI_Status status;
     NvPhysicalGpuHandle test2 = NULL;
 
-    if (!pNvAPI_unknown1)
+    if (!pNvAPI_GPU_CudaEnumComputeCapableGpus)
     {
-        win_skip("pNvAPI_unknown1 export not found.\n");
+        win_skip("pNvAPI_GPU_CudaEnumComputeCapableGpus export not found.\n");
         return;
     }
 
-    if (!pNvAPI_unknown2)
+    if (!pNvAPI_GetGPUIDfromPhysicalGPU)
     {
-        win_skip("pNvAPI_unknown1 export not found.\n");
+        win_skip("pNvAPI_GPU_CudaEnumComputeCapableGpus export not found.\n");
         return;
     }
 
-    status = pNvAPI_unknown2(NULL, NULL);
+    status = pNvAPI_GetGPUIDfromPhysicalGPU(NULL, NULL);
     ok(status == NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE, "Expected status NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE, got %d\n", status);
 
     memset(&test, 0, sizeof(test));
     test.version = NV_UNKNOWN_1_VER;
-    status = pNvAPI_unknown1(&test);
+    status = pNvAPI_GPU_CudaEnumComputeCapableGpus(&test);
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
 
-    status = pNvAPI_unknown2(test.gpus[0].gpuHandle, NULL);
+    status = pNvAPI_GetGPUIDfromPhysicalGPU(test.gpus[0].gpuHandle, NULL);
     ok(status == NVAPI_INVALID_ARGUMENT, "Expected status NVAPI_INVALID_ARGUMENT, got %d\n", status);
 
-    status = pNvAPI_unknown2(NULL, &test2);
+    status = pNvAPI_GetGPUIDfromPhysicalGPU(NULL, &test2);
     ok(status == NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE, "Expected status NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE, got %d\n", status);
 
     test2 = NULL;
-    status = pNvAPI_unknown2((void *)0xdeadbeef, &test2);
+    status = pNvAPI_GetGPUIDfromPhysicalGPU((void *)0xdeadbeef, &test2);
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
     ok(test2 == (void*)0xffffffff, "Expected handle 0xffffffff, got %p\n", test2);
 
     test2 = NULL;
-    status = pNvAPI_unknown2(test.gpus[0].gpuHandle, &test2);
+    status = pNvAPI_GetGPUIDfromPhysicalGPU(test.gpus[0].gpuHandle, &test2);
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
     ok(test2 == test.gpus[0].gpuHandle, "Expected handle %p, got %p\n", test.gpus[0].gpuHandle, test2);
 }
 
-static void test_unknown3(void)
+static void test_GetPhysicalGPUFromGPUID(void)
 {
     NV_UNKNOWN_1 test;
     NvAPI_Status status;
     NvPhysicalGpuHandle test2 = NULL;
     NvPhysicalGpuHandle test3 = NULL;
 
-    if (!pNvAPI_unknown1)
+    if (!pNvAPI_GPU_CudaEnumComputeCapableGpus)
     {
-        win_skip("pNvAPI_unknown1 export not found.\n");
+        win_skip("pNvAPI_GPU_CudaEnumComputeCapableGpus export not found.\n");
         return;
     }
 
-    if (!pNvAPI_unknown2)
+    if (!pNvAPI_GetGPUIDfromPhysicalGPU)
     {
-        win_skip("pNvAPI_unknown1 export not found.\n");
+        win_skip("pNvAPI_GPU_CudaEnumComputeCapableGpus export not found.\n");
         return;
     }
 
-    if (!pNvAPI_unknown3)
+    if (!pNvAPI_GetPhysicalGPUFromGPUID)
     {
-        win_skip("pNvAPI_unknown1 export not found.\n");
+        win_skip("pNvAPI_GPU_CudaEnumComputeCapableGpus export not found.\n");
         return;
     }
 
-    status = pNvAPI_unknown3(NULL, NULL);
+    status = pNvAPI_GetPhysicalGPUFromGPUID(NULL, NULL);
     ok(status == NVAPI_INVALID_ARGUMENT, "Expected status NVAPI_INVALID_ARGUMENT, got %d\n", status);
 
     memset(&test, 0, sizeof(test));
     test.version = NV_UNKNOWN_1_VER;
-    status = pNvAPI_unknown1(&test);
+    status = pNvAPI_GPU_CudaEnumComputeCapableGpus(&test);
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
 
-    status = pNvAPI_unknown2(test.gpus[0].gpuHandle, &test2);
+    status = pNvAPI_GetGPUIDfromPhysicalGPU(test.gpus[0].gpuHandle, &test2);
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
 
-    status = pNvAPI_unknown3(test2, NULL);
+    status = pNvAPI_GetPhysicalGPUFromGPUID(test2, NULL);
     ok(status == NVAPI_INVALID_ARGUMENT, "Expected status NVAPI_INVALID_ARGUMENT, got %d\n", status);
 
-    status = pNvAPI_unknown3(NULL, &test3);
+    status = pNvAPI_GetPhysicalGPUFromGPUID(NULL, &test3);
     ok(status == NVAPI_INVALID_ARGUMENT, "Expected status NVAPI_INVALID_ARGUMENT, got %d\n", status);
 
     test3 = NULL;
-    status = pNvAPI_unknown3((void *)0xdeadbeef, &test3);
+    status = pNvAPI_GetPhysicalGPUFromGPUID((void *)0xdeadbeef, &test3);
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
     ok(test3 == (void*)0xffffffff, "Expected handle 0xffffffff, got %p\n", test3);
 
     test3 = NULL;
-    status = pNvAPI_unknown3(test2, &test3);
+    status = pNvAPI_GetPhysicalGPUFromGPUID(test2, &test3);
     ok(!status, "Expected status NVAPI_OK, got %d\n", status);
     ok(test2 == test3, "Expected handle %p, got %p\n", test2, test3);
 }
@@ -784,9 +784,9 @@ START_TEST( nvapi )
         return;
 
     test_GetDisplayDriverVersion();
-    test_unknown1();
-    test_unknown2();
-    test_unknown3();
+    test_GPU_CudaEnumComputeCapableGpus();
+    test_GetGPUIDfromPhysicalGPU();
+    test_GetPhysicalGPUFromGPUID();
     test_NvAPI_EnumLogicalGPUs();
     test_NvAPI_GetPhysicalGPUsFromLogicalGPU();
     test_NvAPI_EnumPhysicalGPUs();
