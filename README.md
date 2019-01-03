@@ -39,3 +39,11 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 
 * Trying to fake GPU MHz and VRAM MHz clocks  
 
+## Info  
+
+Loads of reference info here:  
+
+[https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/annotated.html](https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/annotated.html)  
+[https://1vwjbxf1wko0yhnr.wordpress.com/2015/08/10/overclocking-tools-for-nvidia-gpus-suck-i-made-my-own/](https://1vwjbxf1wko0yhnr.wordpress.com/2015/08/10/overclocking-tools-for-nvidia-gpus-suck-i-made-my-own/)  
+[https://github.com/verybigbadboy/NVAPI-example](https://github.com/verybigbadboy/NVAPI-example)  
+
