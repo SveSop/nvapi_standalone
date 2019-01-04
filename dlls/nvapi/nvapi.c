@@ -314,7 +314,7 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     if (!pVersion)
         return NVAPI_INVALID_ARGUMENT;
 
-    pVersion->drvVersion = 41742;
+    pVersion->drvVersion = 41735;
     pVersion->bldChangeListNum = 0;
     memcpy(pVersion->szBuildBranchString, build_str, sizeof(build_str));
     memcpy(pVersion->szAdapterString, adapter, sizeof(adapter));
@@ -532,7 +532,7 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVers
         return NVAPI_INVALID_POINTER;
 
     memcpy(szBuildBranchString, build_str, sizeof(build_str));
-    *pDriverVersion = 41742;
+    *pDriverVersion = 41735;
 
     return NVAPI_OK;
 }
@@ -651,6 +651,22 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
     *pSubSystemId = 828380258;
     *pRevisionId = 161;
     *pExtDeviceId = 0;
+
+    return NVAPI_OK;
+}
+
+/* Fake Fan Speed */
+static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pValue)
+{
+    TRACE("(%p, %p)\n", hPhysicalGPU,  pValue);
+
+    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGPU);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    *pValue = 2000;
 
     return NVAPI_OK;
 }
@@ -949,6 +965,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0xbaaabfcc, NvAPI_GPU_GetSystemType},
 	{0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
 	{0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
+	{0x5f608315, NvAPI_GPU_GetTachReading},
 #ifdef MESON_BUILD_D3D11
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
