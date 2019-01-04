@@ -299,7 +299,7 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromGPUID(NvPhysicalGpuHandle gpuH
 static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
 {
     NvAPI_ShortString build_str = {'r','4','1','7','_','0','0','-','1','8','9',0};
-    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','9','7','0',' ','G','T','X', 0};
+    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','G','T','X',' ','9','7','0', 0};
     /* TODO: find a good way to get the graphic card name, EnumDisplayDevices is useless in Wine */
     /* For now we return GeForce 970 GTX as graphic card name */
 
@@ -477,7 +477,7 @@ static NvAPI_Status CDECL NvAPI_EnumPhysicalGPUs(NvPhysicalGpuHandle gpuHandle[N
 
 static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szName)
 {
-    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','9','7','0',' ','G','T','X', 0};
+    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','G','T','X',' ','9','7','0', 0};
 
     TRACE("(%p, %p)\n", hPhysicalGpu, szName);
 
@@ -614,18 +614,18 @@ static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalG
 }
 
 /* Fake nVidia BIOS Version */
-static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szBiosRevision)
+static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGPU, NvAPI_ShortString szBiosRevision)
 {
     NvAPI_ShortString version = {'8','4','.','0','4','.','1','F','.','0','0','.','0','1',0};
 
-    TRACE("(%p, %p)\n", hPhysicalGpu, szBiosRevision);
+    TRACE("(%p, %p)\n", hPhysicalGPU, szBiosRevision);
 
-    if (!hPhysicalGpu)
+    if (!hPhysicalGPU)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
     {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_INVALID_HANDLE;
     }
 
@@ -633,6 +633,25 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
         return NVAPI_INVALID_ARGUMENT;
 
     memcpy(szBiosRevision, version, sizeof(version));
+    return NVAPI_OK;
+}
+
+/* Fake MSI nVidia GTX970 PCI ID's */
+static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
+{
+    TRACE("(%p, %p, %p, %p, %p)\n", hPhysicalGPU, pDeviceId, pSubSystemId, pRevisionId, pExtDeviceId);
+
+    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGPU);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    *pDeviceId = 331485406;
+    *pSubSystemId = 828380258;
+    *pRevisionId = 161;
+    *pExtDeviceId = 0;
+
     return NVAPI_OK;
 }
 
@@ -929,6 +948,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0xdcb616c3, NvAPI_GPU_GetAllClockFrequencies},
 	{0xbaaabfcc, NvAPI_GPU_GetSystemType},
 	{0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
+	{0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
 #ifdef MESON_BUILD_D3D11
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
