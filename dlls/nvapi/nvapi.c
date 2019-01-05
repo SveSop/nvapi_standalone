@@ -583,8 +583,8 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
     return NVAPI_OK;
 }
 
-/* Cybmax */
-static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle hPhysicalGPU, NV_GPU_CLOCK_FREQUENCIES_VER *pClkFreqs)
+/* Fake GPU/MEM clocks */
+static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle hPhysicalGPU, NV_GPU_CLOCK_FREQUENCIES *pClkFreqs)
 {
     TRACE("(%p, %p)\n", hPhysicalGPU, pClkFreqs);
 
@@ -593,9 +593,32 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Attempt to fake 700MHz gpu */
-    pClkFreqs->domain[0].frequency = 700000;
-     return NVAPI_OK;
+    pClkFreqs->ClockType = 0;
+    pClkFreqs->domain[0].bIsPresent = 1;
+    pClkFreqs->domain[0].frequency = 1250000; /* 1250MHz Core clock */
+    pClkFreqs->domain[4].bIsPresent = 1;
+    pClkFreqs->domain[4].frequency = 3500000; /* 3500MHz Memory clock */
+    return NVAPI_OK;
+}
+
+/* Disable "pState" */
+static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(void)
+{
+    TRACE("()\n");
+    return NVAPI_NOT_SUPPORTED;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstates20(void)
+{
+    TRACE("()\n");
+    return NVAPI_NOT_SUPPORTED;
+}
+
+/* Disable GPU Volt */
+static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(void)
+{
+    TRACE("()\n");
+    return NVAPI_NOT_SUPPORTED;
 }
 
 /* Fakes "Desktop" SystemType */
@@ -668,6 +691,17 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
 
     *pValue = 2000;
 
+    return NVAPI_OK;
+}
+
+/* NvAPI Version String */
+static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDesc)
+{
+    NvAPI_ShortString version = {'3','8','4',0};
+
+    TRACE("(%p)\n", szDesc);
+
+    memcpy(szDesc, version, sizeof(version));
     return NVAPI_OK;
 }
 
@@ -966,6 +1000,10 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
 	{0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
 	{0x5f608315, NvAPI_GPU_GetTachReading},
+	{0x01053fa5, NvAPI_GetInterfaceVersionString},
+	{0x927da4f6, NvAPI_GPU_GetCurrentPstate},
+	{0x6ff81213, NvAPI_GPU_GetCurrentPstates20},
+	{0xc16c7e2c, NvAPI_GPU_GetVoltageDomainsStatus},
 #ifdef MESON_BUILD_D3D11
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
