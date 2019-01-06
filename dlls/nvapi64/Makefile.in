@@ -4,3 +4,5 @@ IMPORTS   = wined3d d3d11
 
 C_SRCS = \
 	nvapi.c
+
+RC_SRCS = nvapi64.rc

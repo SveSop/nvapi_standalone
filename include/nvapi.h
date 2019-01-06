@@ -49,6 +49,7 @@ typedef unsigned int NvU32;
 #define NVAPI_MAX_LOGICAL_GPUS 64
 #define NVAPI_MAX_GPU_CLOCKS 32
 #define NVAPI_MAX_GPU_PUBLIC_CLOCKS 32
+#define NVAPI_MAX_GPU_UTILIZATIONS 8
 #define NVAPI_ADVANCED_DISPLAY_HEADS 4
 #define NVAPI_MAX_DISPLAYS (NVAPI_PHYSICAL_GPUS * NVAPI_ADVANCED_DISPLAY_HEADS)
 
@@ -94,6 +95,30 @@ typedef struct
 } NV_GPU_CLOCK_FREQUENCIES_V2;
 
 #define NV_GPU_CLOCK_FREQUENCIES NV_GPU_CLOCK_FREQUENCIES_V2
+
+typedef struct
+{
+    NvU32 version;
+    NvU32 bIsEditable:1;
+    NvU32 reserved:31;
+    NvU32 numPstates;
+    NvU32 numClocks;
+    NvU32 numBaseVoltages;
+       struct {
+       NvU32 pstateId;
+       NvU32 bIsEditable:1;
+       NvU32 reserved:31;
+       NvU32 clocks;
+       NvU32 baseVoltages;
+    } pstates[16];
+          struct {
+          NvU32 numVoltages;
+          NvU32 voltages[1];
+       } ov;
+} NV_GPU_PERF_PSTATES20_INFO_V2;
+
+#define NV_GPU_PERF_PSTATES20_INFO_VER2 MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES20_INFO_V2, 2)
+typedef NV_GPU_PERF_PSTATES20_INFO_V2 NV_GPU_PERF_PSTATES20_INFO;
 
 #define NV_DISPLAY_DRIVER_VERSION_VER MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_VERSION, 1)
 

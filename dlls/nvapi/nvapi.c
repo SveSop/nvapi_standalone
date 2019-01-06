@@ -601,17 +601,37 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     return NVAPI_OK;
 }
 
-/* Disable "pState" */
-static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(void)
+/* Experimenting with "CurrentpState" */
+static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pCurrentPstate)
 {
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
+    TRACE("(%p, %p)\n", hPhysicalGPU, pCurrentPstate);
+
+    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGPU);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pCurrentPstate = 0;
+    return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstates20(void)
+static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES20_INFO *pPstatesInfo)
 {
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
+TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    pPstatesInfo->numPstates = 1;
+    pPstatesInfo->numClocks = 1;
+    pPstatesInfo->numBaseVoltages = 1;
+    pPstatesInfo->pstates[0].pstateId = 0;
+    pPstatesInfo->pstates[0].clocks = 1;
+    pPstatesInfo->pstates[0].baseVoltages = 1;
+    pPstatesInfo->ov.numVoltages = 1;
+    return NVAPI_OK;
 }
 
 /* Disable GPU Volt */
@@ -697,7 +717,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
 /* NvAPI Version String */
 static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDesc)
 {
-    NvAPI_ShortString version = {'3','8','4',0};
+    NvAPI_ShortString version = {'1','7','3','5',0};
 
     TRACE("(%p)\n", szDesc);
 
@@ -1002,7 +1022,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x5f608315, NvAPI_GPU_GetTachReading},
 	{0x01053fa5, NvAPI_GetInterfaceVersionString},
 	{0x927da4f6, NvAPI_GPU_GetCurrentPstate},
-	{0x6ff81213, NvAPI_GPU_GetCurrentPstates20},
+	{0x6ff81213, NvAPI_GPU_GetPstates20},
 	{0xc16c7e2c, NvAPI_GPU_GetVoltageDomainsStatus},
 #ifdef MESON_BUILD_D3D11
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
