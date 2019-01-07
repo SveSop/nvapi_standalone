@@ -524,7 +524,7 @@ static NvAPI_Status CDECL NvAPI_EnumNvidiaDisplayHandle(NvU32 thisEnum, NvDispla
 
 static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVersion, NvAPI_ShortString szBuildBranchString)
 {
-    NvAPI_ShortString build_str = {'r','4','1','7','_','0','0',0};
+    NvAPI_ShortString build_str = {'r','4','1','0','_','0','0',0};
 
     TRACE("(%p, %p)\n", pDriverVersion, szBuildBranchString);
 
@@ -628,9 +628,10 @@ TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0;
-    pPstatesInfo->pstates[0].clocks = 1;
-    pPstatesInfo->pstates[0].baseVoltages = 1;
+    pPstatesInfo->pstates[0].clocks[0] = 1;
+    pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     pPstatesInfo->ov.numVoltages = 1;
+    pPstatesInfo->ov.voltages[0] = 1;
     return NVAPI_OK;
 }
 
@@ -714,6 +715,33 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
     return NVAPI_OK;
 }
 
+/* Thermal Settings - Fake 60 degree GPU Temp */
+static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 sensorIndex, NV_GPU_THERMAL_SETTINGS *pThermalSettings)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu,  pThermalSettings);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    sensorIndex = 0;
+    pThermalSettings->count = 1;
+    pThermalSettings->sensor[0].controller = 1; /* Gpu_Internal */
+    pThermalSettings->sensor[0].defaultMinTemp = 0;
+    pThermalSettings->sensor[0].defaultMaxTemp = 120;
+    pThermalSettings->sensor[0].currentTemp = 60; /* GPU Temp */
+    pThermalSettings->sensor[0].target = 1; /* GPU */
+    pThermalSettings->sensor[1].controller = 1; /* Gpu_Internal */
+    pThermalSettings->sensor[1].defaultMinTemp = 0;
+    pThermalSettings->sensor[1].defaultMaxTemp = 40;
+    pThermalSettings->sensor[1].currentTemp = 25; /* Memory Temp */
+    pThermalSettings->sensor[1].target = 2; /* Memory */
+
+    return NVAPI_OK;
+}
+
 /* NvAPI Version String */
 static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDesc)
 {
@@ -722,6 +750,70 @@ static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDe
     TRACE("(%p)\n", szDesc);
 
     memcpy(szDesc, version, sizeof(version));
+    return NVAPI_OK;
+}
+
+/* Nvidia GPU BusID */
+static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusId)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu,  pBusId);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    *pBusId = 1;
+
+    return NVAPI_OK;
+}
+
+/* Shader Pipe Count (Se note below) */
+static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pShaderPipeCount)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu,  pShaderPipeCount);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    *pShaderPipeCount = 1664;
+
+    return NVAPI_OK;
+}
+
+/* Uncertain of the difference between shader pipe and shader unit on GTX970.
+   There are 1664 "Shader Units" 						*/
+static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu,  pCount);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    *pCount = 1664;
+
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusSlotId)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu,  pBusSlotId);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    *pBusSlotId = 0;
+
     return NVAPI_OK;
 }
 
@@ -777,12 +869,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
 {
     TRACE("()\n");
     return NVAPI_OK;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(void)
-{
-    TRACE("()\n");
-    return NVAPI_INVALID_ARGUMENT;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetRamType(void)
@@ -1024,6 +1110,10 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x927da4f6, NvAPI_GPU_GetCurrentPstate},
 	{0x6ff81213, NvAPI_GPU_GetPstates20},
 	{0xc16c7e2c, NvAPI_GPU_GetVoltageDomainsStatus},
+	{0x1be0b8e5, NvAPI_GPU_GetBusId},
+	{0x2a0a350f, NvAPI_GPU_GetBusSlotId},
+	{0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
+	{0x0be17923, NvAPI_GPU_GetShaderSubPipeCount},
 #ifdef MESON_BUILD_D3D11
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},

@@ -23,6 +23,7 @@
 
 typedef unsigned char NvU8;
 typedef unsigned int NvU32;
+typedef signed int NvS32;
 
 #define NvAPI_Status int
 
@@ -49,7 +50,10 @@ typedef unsigned int NvU32;
 #define NVAPI_MAX_LOGICAL_GPUS 64
 #define NVAPI_MAX_GPU_CLOCKS 32
 #define NVAPI_MAX_GPU_PUBLIC_CLOCKS 32
-#define NVAPI_MAX_GPU_UTILIZATIONS 8
+#define NVAPI_MAX_THERMAL_SENSORS_PER_GPU 3
+#define NVAPI_MAX_GPU_PSTATE20_CLOCKS 8
+#define NVAPI_MAX_GPU_PSTATE20_PSTATES 16
+#define NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES 4
 #define NVAPI_ADVANCED_DISPLAY_HEADS 4
 #define NVAPI_MAX_DISPLAYS (NVAPI_PHYSICAL_GPUS * NVAPI_ADVANCED_DISPLAY_HEADS)
 
@@ -108,17 +112,33 @@ typedef struct
        NvU32 pstateId;
        NvU32 bIsEditable:1;
        NvU32 reserved:31;
-       NvU32 clocks;
-       NvU32 baseVoltages;
+       NvU32 clocks[NVAPI_MAX_GPU_PSTATE20_CLOCKS];
+       NvU32 baseVoltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
     } pstates[16];
           struct {
           NvU32 numVoltages;
-          NvU32 voltages[1];
+          NvU32 voltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
        } ov;
 } NV_GPU_PERF_PSTATES20_INFO_V2;
 
 #define NV_GPU_PERF_PSTATES20_INFO_VER2 MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES20_INFO_V2, 2)
 typedef NV_GPU_PERF_PSTATES20_INFO_V2 NV_GPU_PERF_PSTATES20_INFO;
+
+typedef struct
+{
+    NvU32 version;
+    NvU32 count;
+    struct {
+       NvU32 controller;
+       NvS32 defaultMinTemp;
+       NvS32 defaultMaxTemp;
+       NvS32 currentTemp;
+       NvU32 target;
+    } sensor[NVAPI_MAX_THERMAL_SENSORS_PER_GPU];
+} NV_GPU_THERMAL_SETTINGS_V2;
+
+#define NV_GPU_THERMAL_SETTINGS_VER_2 MAKE_NVAPI_VERSION(NV_GPU_THERMAL_SETTINGS_V2, 2)
+typedef NV_GPU_THERMAL_SETTINGS_V2 NV_GPU_THERMAL_SETTINGS;
 
 #define NV_DISPLAY_DRIVER_VERSION_VER MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_VERSION, 1)
 
