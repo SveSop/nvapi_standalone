@@ -669,7 +669,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalG
 /* Fake nVidia BIOS Version */
 static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGPU, NvAPI_ShortString szBiosRevision)
 {
-    NvAPI_ShortString version = {'8','4','.','0','4','.','1','F','.','0','0','.','0','1',0};
+    NvAPI_ShortString version = {'8','4','.','0','4','.','3','6','.','0','0','.','f','1',0};
 
     TRACE("(%p, %p)\n", hPhysicalGPU, szBiosRevision);
 

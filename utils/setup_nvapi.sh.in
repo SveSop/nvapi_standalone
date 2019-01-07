@@ -97,8 +97,8 @@ function removeOverride {
     echo "    [1/2] Removing override... "
     $wine reg delete 'HKEY_CURRENT_USER\Software\Wine\DllOverrides' /v $1 /f > /dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo "Failed"
-        exit 1
+        echo "Override does not exist, trying next..."
+        ret=2
     fi
     local dll="$unix_sys_path/$1.dll"
     echo "    [2/2] Removing link... "
