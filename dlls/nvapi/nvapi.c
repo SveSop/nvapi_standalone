@@ -298,7 +298,7 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromGPUID(NvPhysicalGpuHandle gpuH
 
 static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
 {
-    NvAPI_ShortString build_str = {'r','4','1','7','_','0','0','-','1','8','9',0};
+    NvAPI_ShortString build_str = {'r','4','1','5','_','0','0','-','1','8','9',0};
     NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','G','T','X',' ','9','7','0', 0};
     /* TODO: find a good way to get the graphic card name, EnumDisplayDevices is useless in Wine */
     /* For now we return GeForce 970 GTX as graphic card name */
@@ -314,7 +314,7 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     if (!pVersion)
         return NVAPI_INVALID_ARGUMENT;
 
-    pVersion->drvVersion = 41735;
+    pVersion->drvVersion = 41522;
     pVersion->bldChangeListNum = 0;
     memcpy(pVersion->szBuildBranchString, build_str, sizeof(build_str));
     memcpy(pVersion->szAdapterString, adapter, sizeof(adapter));
@@ -532,7 +532,7 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVers
         return NVAPI_INVALID_POINTER;
 
     memcpy(szBuildBranchString, build_str, sizeof(build_str));
-    *pDriverVersion = 41735;
+    *pDriverVersion = 41522;
 
     return NVAPI_OK;
 }
@@ -597,7 +597,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     pClkFreqs->domain[0].bIsPresent = 1;
     pClkFreqs->domain[0].frequency = 1250000; /* 1250MHz Core clock */
     pClkFreqs->domain[4].bIsPresent = 1;
-    pClkFreqs->domain[4].frequency = 3500000; /* 3500MHz Memory clock */
+    pClkFreqs->domain[4].frequency = 7000000; /* 7000MHz Memory clock (DDR type clock) */
     return NVAPI_OK;
 }
 
@@ -617,7 +617,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysic
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES20_INFO *pPstatesInfo)
 {
-TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
+    TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
     {
@@ -636,10 +636,21 @@ TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 }
 
 /* Disable GPU Volt */
-static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(void)
+static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle hPhysicalGpu, NV_VOLT_STATUS *pVoltStatus)
 {
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
+    TRACE("(%p, %p)\n", hPhysicalGpu, pVoltStatus);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    pVoltStatus->flags = 0;
+    pVoltStatus->count = 1;
+    pVoltStatus->value_uV = 1200000;
+    pVoltStatus->buf1 = 1;
+    return NVAPI_OK;
 }
 
 /* Fakes "Desktop" SystemType */
@@ -853,10 +864,11 @@ static NvAPI_Status CDECL NvAPI_GPU_PhysxQueryRecommendedState(void)
     return NVAPI_OK;
 }
 
+/* Deprecated */
 static NvAPI_Status CDECL NvAPI_GPU_GetAllClocks(void)
 {
     TRACE("()\n");
-    return NVAPI_OK;
+    return NVAPI_INVALID_ARGUMENT;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetManufacturingInfo(void)

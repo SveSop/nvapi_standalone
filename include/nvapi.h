@@ -85,6 +85,8 @@ typedef struct
     NvAPI_ShortString  szAdapterString;
 } NV_DISPLAY_DRIVER_VERSION;
 
+#define NV_DISPLAY_DRIVER_VERSION_VER MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_VERSION, 1)
+
 typedef struct
 {
     NvU32		version;
@@ -140,7 +142,17 @@ typedef struct
 #define NV_GPU_THERMAL_SETTINGS_VER_2 MAKE_NVAPI_VERSION(NV_GPU_THERMAL_SETTINGS_V2, 2)
 typedef NV_GPU_THERMAL_SETTINGS_V2 NV_GPU_THERMAL_SETTINGS;
 
-#define NV_DISPLAY_DRIVER_VERSION_VER MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_VERSION, 1)
+typedef struct
+{
+    NvU32 version;
+    NvU32 flags;
+    NvU32 count;
+    NvU32 unknown;
+    NvU32 value_uV;
+    NvU32 buf1:30;
+} NV_VOLT_STATUS_V1;
+
+typedef NV_VOLT_STATUS_V1 NV_VOLT_STATUS;
 
 typedef struct
 {
