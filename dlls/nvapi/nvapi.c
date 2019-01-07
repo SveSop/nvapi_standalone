@@ -30,9 +30,7 @@
 #include "wine/list.h"
 #include "nvapi.h"
 #include "d3d9.h"
-#ifdef MESON_BUILD_D3D11
 #include "d3d11.h"
-#endif
 #include "wine/wined3d.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
@@ -978,7 +976,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
     return NVAPI_OK;
 }
 
-#ifdef MESON_BUILD_D3D11
 static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrContext, NvU32 bEnable, float fMinDepth, float fMaxDepth)
 {
     struct wined3d_device *device;
@@ -1057,7 +1054,6 @@ static NvAPI_Status CDECL NvAPI_D3D11_CreateDeviceAndSwapChain(IDXGIAdapter *ada
 
     return NVAPI_OK;
 }
-#endif //MESON_BUILD_D3D11
 
 void* CDECL nvapi_QueryInterface(unsigned int offset)
 {
@@ -1126,11 +1122,9 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x2a0a350f, NvAPI_GPU_GetBusSlotId},
 	{0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
 	{0x0be17923, NvAPI_GPU_GetShaderSubPipeCount},
-#ifdef MESON_BUILD_D3D11
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
-#endif
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
