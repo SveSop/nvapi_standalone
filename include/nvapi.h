@@ -29,6 +29,7 @@ typedef signed int NvS32;
 
 #define NVAPI_OK 0
 #define NVAPI_ERROR -1
+#define NVAPI_LIBRARY_NOT_FOUND -2
 #define NVAPI_NO_IMPLEMENTATION -3
 #define NVAPI_INVALID_ARGUMENT -5
 #define NVAPI_NVIDIA_DEVICE_NOT_FOUND -6
