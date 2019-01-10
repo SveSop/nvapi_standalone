@@ -595,7 +595,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     pClkFreqs->domain[0].bIsPresent = 1;
     pClkFreqs->domain[0].frequency = 1250000; /* 1250MHz Core clock */
     pClkFreqs->domain[4].bIsPresent = 1;
-    pClkFreqs->domain[4].frequency = 7000000; /* 7000MHz Memory clock (DDR type clock) */
+    pClkFreqs->domain[4].frequency = 3500000; /* 3500MHz Memory clock (DDR type clock) */
     return NVAPI_OK;
 }
 
@@ -625,7 +625,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = 0;
+    pPstatesInfo->pstates[0].pstateId = 0; /* Hopefully "Performance mode" */
     pPstatesInfo->pstates[0].clocks[0] = 1;
     pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     pPstatesInfo->ov.numVoltages = 1;
@@ -648,7 +648,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
     return NVAPI_OK;
 }
 
-/* Disable GPU Volt */
+/* Fake GPU Volt */
 static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle hPhysicalGpu, NV_VOLT_STATUS *pVoltStatus)
 {
     TRACE("(%p, %p)\n", hPhysicalGpu, pVoltStatus);
@@ -839,6 +839,23 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGp
 
     *pBusSlotId = 0;
 
+    return NVAPI_OK;
+}
+
+/* Another Memory return function */
+static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_DISPLAY_DRIVER_MEMORY_INFO *pMemoryInfo)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pMemoryInfo);
+
+    if (!hPhysicalGpu)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    if (!pMemoryInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
+    pMemoryInfo->dedicatedVideoMemory = 4096; /* 4GB GTX 970 */
+    pMemoryInfo->availableDedicatedVideoMemory = 4096; /* */
+    pMemoryInfo->curAvailableDedicatedVideoMemory = 3896; /* Fake some 5% memory usage */
     return NVAPI_OK;
 }
 
@@ -1142,6 +1159,8 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
 	{0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
+	{0x07f9b368, NvAPI_GPU_GetMemoryInfo},
+	{0x774aa982, NvAPI_GPU_GetMemoryInfo},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);

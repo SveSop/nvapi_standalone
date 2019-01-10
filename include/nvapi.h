@@ -168,6 +168,20 @@ typedef NV_VOLT_STATUS_V1 NV_VOLT_STATUS;
 typedef struct
 {
     NvU32 version;
+    NvU32 dedicatedVideoMemory;
+    NvU32 availableDedicatedVideoMemory;
+    NvU32 systemVideoMemory;
+    NvU32 sharedSystemMemory;
+    NvU32 curAvailableDedicatedVideoMemory;
+    NvU32 dedicatedVideoMemoryEvictionsSize;
+    NvU32 dedicatedVideoMemoryEvictionCount;
+} NV_DISPLAY_DRIVER_MEMORY_INFO_V3;
+
+typedef NV_DISPLAY_DRIVER_MEMORY_INFO_V3 NV_DISPLAY_DRIVER_MEMORY_INFO;
+
+typedef struct
+{
+    NvU32 version;
     NvU32 maxNumAFRGroups;
     NvU32 numAFRGroups;
     NvU32 currentAFRIndex;
