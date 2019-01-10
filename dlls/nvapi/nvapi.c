@@ -633,6 +633,21 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     return NVAPI_OK;
 }
 
+/* Seems to fake GPU load in "Performance mode" */
+static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_DYNAMIC_PSTATES_INFO_EX *pDynamicPstatesInfoEx)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pDynamicPstatesInfoEx);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    pDynamicPstatesInfoEx->flags = 1;
+    pDynamicPstatesInfoEx->utilization[0].percentage = 100;
+    return NVAPI_OK;
+}
+
 /* Disable GPU Volt */
 static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle hPhysicalGpu, NV_VOLT_STATUS *pVoltStatus)
 {
@@ -811,6 +826,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
     return NVAPI_OK;
 }
 
+/* GPU BusSlotID */
 static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusSlotId)
 {
     TRACE("(%p, %p)\n", hPhysicalGpu,  pBusSlotId);
@@ -1125,6 +1141,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
+	{0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
