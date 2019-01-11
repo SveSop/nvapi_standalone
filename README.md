@@ -24,7 +24,7 @@ WINEPREFIX=/your/wine/prefix ./setup_nvapi_32.sh install
 
 OBS! For a x86_64 WINEPREFIX you need to run BOTH scripts!  
 
-This creates symlinks in the wineprefix + creates dll-override that ENABLE nvapi. This is known to cause problems when using DXVK!  
+This creates symlinks in the wineprefix + creates dll-override that ENABLE nvapi. This MAY cause problems when using DXVK!  
 
 ## Goal  
 
@@ -32,9 +32,9 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 
 ## Changes
 
-* Updated faked driverversion to 417 revision + change to GTX 970  
+* Updated faked driverversion to 415 revision + change to GTX 970  
 * Added the NvAPI_GPU_GetSystemType to set "Desktop"  
-* Added NvAPI_GPU_GetVbiosVersionString to output version: BIOS: 84.04.1F.00.01  
+* Added NvAPI_GPU_GetVbiosVersionString to output version: BIOS: 84.04.36.00.f1  
 * Updated and added a couple of (so far empty) functions.  
 * Fake GPU MHz and VRAM MHz clocks
 * Fake GPU Volt
