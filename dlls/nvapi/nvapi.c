@@ -626,10 +626,11 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0; /* Hopefully "Performance mode" */
-    pPstatesInfo->pstates[0].clocks[0] = 1;
+    pPstatesInfo->pstates[0].clocks[0] = 1250000; /* Should be GPU clock? */
+    pPstatesInfo->pstates[0].clocks[3] = 1250000; /* "Boost" GPU clock */
+    pPstatesInfo->pstates[1].clocks[0] = 3500000; /* "Boost" VRAM clock? */
+    pPstatesInfo->pstates[1].clocks[3] = 3500000; /* Seems to be "normal" VRAM clock */
     pPstatesInfo->pstates[0].baseVoltages[0] = 1;
-    pPstatesInfo->ov.numVoltages = 1;
-    pPstatesInfo->ov.voltages[0] = 1;
     return NVAPI_OK;
 }
 
@@ -854,8 +855,21 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
         return NVAPI_INVALID_ARGUMENT;
 
     pMemoryInfo->dedicatedVideoMemory = 4096; /* 4GB GTX 970 */
-    pMemoryInfo->availableDedicatedVideoMemory = 4096; /* */
+    pMemoryInfo->availableDedicatedVideoMemory = 4096;
+    pMemoryInfo->sharedSystemMemory = 8192; /* 2 x Physical VRAM */
     pMemoryInfo->curAvailableDedicatedVideoMemory = 3896; /* Fake some 5% memory usage */
+    return NVAPI_OK;
+}
+
+/* Set "RamType" to GDDR5 */
+static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pRamType)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pRamType);
+
+    if (!hPhysicalGpu)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    *pRamType = 8;
     return NVAPI_OK;
 }
 
@@ -909,12 +923,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetManufacturingInfo(void)
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
-{
-    TRACE("()\n");
-    return NVAPI_OK;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetRamType(void)
 {
     TRACE("()\n");
     return NVAPI_OK;
