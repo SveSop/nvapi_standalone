@@ -19,8 +19,10 @@ Setup script will be located in:
 destdir/bin/setup_nvapi_32.sh (for 32-bit install)  
 destdir/bin/setup_nvapi_64.sh (for 64-bit install)  
 
-For a x86_64 WINEPREFIX you need to run BOTH scripts!  
+eg. 32-bit  
+WINEPREFIX=/your/wine/prefix ./setup_nvapi_32.sh install  
 
+OBS! For a x86_64 WINEPREFIX you need to run BOTH scripts!  
 
 This creates symlinks in the wineprefix + creates dll-override that ENABLE nvapi. This is known to cause problems when using DXVK!  
 
@@ -38,6 +40,7 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 * Fake GPU Volt
 * Changed to use driver 415.22 inline with actual Linux version.
 * Fake fan rpm
+* More fake memory settings
 * Loads of useless crap  
 
 ## Working on  
