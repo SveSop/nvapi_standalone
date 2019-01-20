@@ -46,7 +46,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 
 Display *display;
 int clocks;
-
+int gputemp;
+int gpumaxtemp;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -599,6 +600,7 @@ static int get_nv_clocks(void)
             FIXME("invalid display: %d\n", clocks);
             return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
         }
+    XCloseDisplay(display);
     return (nv_clocks);
 }
 
@@ -767,7 +769,39 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
     return NVAPI_OK;
 }
 
-/* Thermal Settings - Fake 60 degree GPU Temp */
+/* Get GPU temperature from NVCtrl */
+static int get_gpu_temp(void)
+{
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool gpu_temp=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CORE_TEMPERATURE, &gputemp);
+    if (!gpu_temp) {
+            FIXME("invalid display: %d\n", gputemp);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        }
+    XCloseDisplay(display);
+    return (gpu_temp);
+}
+
+/* NVCtrl slowdown temp threshold */
+static int get_gpu_maxtemp(void)
+{
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+                return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool gpu_maxtemp=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_MAX_CORE_THRESHOLD, &gpumaxtemp);
+    if (!gpu_maxtemp) {
+            FIXME("invalid display: %d\n", gpumaxtemp);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        }
+    XCloseDisplay(display);
+    return (gpu_maxtemp);
+}
+
+/* Thermal Settings - GPU Temp */
 static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 sensorIndex, NV_GPU_THERMAL_SETTINGS *pThermalSettings)
 {
     TRACE("(%p, %p)\n", hPhysicalGpu,  pThermalSettings);
@@ -782,8 +816,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhys
     pThermalSettings->count = 1;
     pThermalSettings->sensor[0].controller = 1; /* Gpu_Internal */
     pThermalSettings->sensor[0].defaultMinTemp = 0;
-    pThermalSettings->sensor[0].defaultMaxTemp = 120;
-    pThermalSettings->sensor[0].currentTemp = 60; /* GPU Temp */
+    pThermalSettings->sensor[0].defaultMaxTemp = (get_gpu_maxtemp(), gpumaxtemp); /* GPU max temp threshold */
+    pThermalSettings->sensor[0].currentTemp = (get_gpu_temp(), gputemp); /* Current GPU Temp */
     pThermalSettings->sensor[0].target = 1; /* GPU */
     pThermalSettings->sensor[1].controller = 1; /* Gpu_Internal */
     pThermalSettings->sensor[1].defaultMinTemp = 0;
