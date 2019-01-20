@@ -6,8 +6,9 @@ Original source: https://github.com/pchome/wine-playground/tree/master/nvapi
 Some custom mods for driver version++  
 
 ## Requirements:  
-- [WINE](https://www.winehq.org/)
-- [Meson](http://mesonbuild.com/)
+- [WINE](https://www.winehq.org/)  
+- [Meson](http://mesonbuild.com/)  
+- libxnvctrl-dev (both amd64 and i386)  
 
 ## How to build  
 
@@ -42,9 +43,11 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 * Fake fan rpm
 * More fake memory settings
 * Loads of useless crap  
+* Implementing using NVCtrl interface to get real values  
 
 ## Working on  
 
+* Changing "fake" values over to using NVCtrl library.  
 * For some reason adding NvAPI_GPU_GetBusId the tool "GPU Caps Viewer" now display CUDA correctly, but no OpenCL.
 
 ## Info  
