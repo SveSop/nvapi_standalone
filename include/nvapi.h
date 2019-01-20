@@ -107,6 +107,19 @@ typedef struct
 typedef struct
 {
     NvU32 version;
+    NvU32 flags;
+    struct {
+	NvU32 bIsPresent;
+        NvU32 percentage;
+        NvU32 reserved:2;
+    } usages[8];
+} NV_USAGES_INFO_V1;
+
+#define NV_USAGES_INFO NV_USAGES_INFO_V1
+
+typedef struct
+{
+    NvU32 version;
     NvU32 bIsEditable:1;
     NvU32 reserved:31;
     NvU32 numPstates;

@@ -46,6 +46,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 
 Display *display;
 int clocks, gputemp, gpumaxtemp, gpuvram;
+char *gfxload;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -682,11 +683,62 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0; /* Hopefully "Performance mode" */
-    pPstatesInfo->pstates[0].clocks[0] = (gpu * 1000); /* Should be current GPU clock? */
-    pPstatesInfo->pstates[0].clocks[3] = 1250000; /* "Boost" GPU clock */
-    pPstatesInfo->pstates[1].clocks[0] = 3500000; /* "Boost" VRAM clock? */
+    pPstatesInfo->pstates[0].clocks[3] = 1350000; /* "Boost/OC" GPU clock */
+    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000); /* Should be current GPU clock? */
+    pPstatesInfo->pstates[1].pstateId = 0;
+    pPstatesInfo->pstates[1].clocks[0] = 3500000; /* "Boost/OC" VRAM clock */
     pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000); /* Seems to be "current" VRAM clock */
     pPstatesInfo->pstates[0].baseVoltages[0] = 1;
+    return NVAPI_OK;
+}
+
+/* GPU Usage */
+static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, NV_USAGES_INFO *pUsagesInfo)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pUsagesInfo);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+                return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool gpu_load=XNVCTRLQueryTargetStringAttribute(display,
+                                                NV_CTRL_TARGET_TYPE_GPU,
+                                                0, // target_id
+                                                0, // display_mask
+                                                NV_CTRL_STRING_GPU_UTILIZATION,
+                                                &gfxload);
+    if (!gpu_load) {
+            FIXME("invalid display: %s\n", gfxload);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        }
+    const char delims[] = ",";
+    char *result = strtok(gfxload, delims);
+    memmove(result, result+9, strlen(result));
+
+    pUsagesInfo->flags = 0;
+    pUsagesInfo->usages[0].bIsPresent = 1;
+    pUsagesInfo->usages[0].percentage = strtoul(result, &result, 10);
+    XCloseDisplay(display);
+    return NVAPI_OK;
+}
+
+/* GPU Type - Discrete */
+static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pGpuType)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pGpuType);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pGpuType = 2; /* Discrete GPU Type */
     return NVAPI_OK;
 }
 
@@ -701,6 +753,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
     pDynamicPstatesInfoEx->flags = 1;
+    pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;
     pDynamicPstatesInfoEx->utilization[0].percentage = 100;
     return NVAPI_OK;
 }
@@ -1274,6 +1327,8 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
 	{0x07f9b368, NvAPI_GPU_GetMemoryInfo},
 	{0x774aa982, NvAPI_GPU_GetMemoryInfo},
+	{0xc33baeb1, NvAPI_GPU_GetGPUType},
+	{0x189a1fdf, NvAPI_GPU_GetUsages},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
