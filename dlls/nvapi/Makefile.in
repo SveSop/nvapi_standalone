@@ -1,5 +1,6 @@
 MODULE    = nvapi.dll
 IMPORTS   = wined3d d3d11
+EXTRALIBS = X11 XNVCtrl
 
 C_SRCS = \
 	nvapi.c

@@ -4,7 +4,7 @@ nvapi64_src = [
 
 nvapi_dll = shared_library('nvapi64.dll', nvapi64_src,
   name_prefix         : '',
-  dependencies        : [ lib_wined3d, lib_d3d11 ],
+  dependencies        : [ lib_wined3d, lib_d3d11, lib_X11, lib_XNVCtrl ],
   include_directories : include_path,
   objects             : 'nvapi64.spec',
   install             : true)

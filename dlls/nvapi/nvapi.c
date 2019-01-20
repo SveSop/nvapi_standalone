@@ -20,6 +20,8 @@
 #include "config.h"
 
 #include <stdarg.h>
+#include "Xlib.h"
+#include <NVCtrl/NVCtrlLib.h>
 
 #define COBJMACROS
 #include "initguid.h"
@@ -41,6 +43,10 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 #define FAKE_DISPLAY_ID ((NvU32)0xdead0004)
 
 #if defined(__i386__) || defined(__x86_64__)
+
+Display *display;
+int clocks;
+
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -581,7 +587,22 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
     return NVAPI_OK;
 }
 
-/* Fake GPU/MEM clocks */
+/* Get clocks from NVCtrl */
+static int get_nv_clocks(void)
+{
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool nv_clocks=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CLOCK_FREQS, &clocks);
+    if (!nv_clocks) {
+            FIXME("invalid display: %d\n", clocks);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        }
+    return (nv_clocks);
+}
+
+/* Get GPU/MEM clocks from NVCtrl */
 static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle hPhysicalGPU, NV_GPU_CLOCK_FREQUENCIES *pClkFreqs)
 {
     TRACE("(%p, %p)\n", hPhysicalGPU, pClkFreqs);
@@ -591,11 +612,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
+    get_nv_clocks();
+    int gpu=(clocks >> 16);
+    short memclk=clocks;
     pClkFreqs->ClockType = 0;
     pClkFreqs->domain[0].bIsPresent = 1;
-    pClkFreqs->domain[0].frequency = 1250000; /* 1250MHz Core clock */
+    pClkFreqs->domain[0].frequency = (gpu * 1000); /* Core clock */
     pClkFreqs->domain[4].bIsPresent = 1;
-    pClkFreqs->domain[4].frequency = 3500000; /* 3500MHz Memory clock (DDR type clock) */
+    pClkFreqs->domain[4].frequency = (memclk * 1000); /* Memory clock (DDR type clock) */
     return NVAPI_OK;
 }
 
@@ -622,14 +646,17 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
+    get_nv_clocks();
+    int gpu=(clocks >> 16);
+    short memclk=clocks;
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0; /* Hopefully "Performance mode" */
-    pPstatesInfo->pstates[0].clocks[0] = 1250000; /* Should be GPU clock? */
+    pPstatesInfo->pstates[0].clocks[0] = (gpu * 1000); /* Should be current GPU clock? */
     pPstatesInfo->pstates[0].clocks[3] = 1250000; /* "Boost" GPU clock */
     pPstatesInfo->pstates[1].clocks[0] = 3500000; /* "Boost" VRAM clock? */
-    pPstatesInfo->pstates[1].clocks[3] = 3500000; /* Seems to be "normal" VRAM clock */
+    pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000); /* Seems to be "current" VRAM clock */
     pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     return NVAPI_OK;
 }
