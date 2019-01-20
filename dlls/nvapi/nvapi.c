@@ -302,9 +302,22 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromGPUID(NvPhysicalGpuHandle gpuH
 static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
 {
     NvAPI_ShortString build_str = {'r','4','1','5','_','0','0','-','1','8','9',0};
-    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','G','T','X',' ','9','7','0', 0};
-    /* TODO: find a good way to get the graphic card name, EnumDisplayDevices is useless in Wine */
-    /* For now we return GeForce 970 GTX as graphic card name */
+    char *adapter;
+
+    if (!(display = XOpenDisplay(NULL))) {
+        TRACE("(%p)\n", XDisplayName(NULL));
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+
+    Bool check=XNVCTRLQueryTargetStringAttribute(display,
+                                                NV_CTRL_TARGET_TYPE_GPU,
+                                                0, // target_id
+                                                0, // display_mask
+                                                NV_CTRL_STRING_PRODUCT_NAME,
+                                                &adapter);
+    if (!check) {
+        return NVAPI_INVALID_POINTER;
+    }
 
     TRACE("(%p, %p)\n", hNvDisplay, pVersion);
 
@@ -320,8 +333,8 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     pVersion->drvVersion = 41522;
     pVersion->bldChangeListNum = 0;
     memcpy(pVersion->szBuildBranchString, build_str, sizeof(build_str));
-    memcpy(pVersion->szAdapterString, adapter, sizeof(adapter));
-
+    strcpy(pVersion->szAdapterString, adapter);
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
@@ -480,7 +493,22 @@ static NvAPI_Status CDECL NvAPI_EnumPhysicalGPUs(NvPhysicalGpuHandle gpuHandle[N
 
 static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szName)
 {
-    NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','G','T','X',' ','9','7','0', 0};
+    char *adapter;
+
+    if (!(display = XOpenDisplay(NULL))) {
+        TRACE("(%p)\n", XDisplayName(NULL));
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+
+    Bool check=XNVCTRLQueryTargetStringAttribute(display,
+                                                NV_CTRL_TARGET_TYPE_GPU,
+                                                0, // target_id
+                                                0, // display_mask
+                                                NV_CTRL_STRING_PRODUCT_NAME,
+                                                &adapter);
+    if (!check) {
+        return NVAPI_INVALID_POINTER;
+    }
 
     TRACE("(%p, %p)\n", hPhysicalGpu, szName);
 
@@ -496,7 +524,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu
     if (!szName)
         return NVAPI_INVALID_ARGUMENT;
 
-    memcpy(szName, adapter, sizeof(adapter));
+    strcpy(szName, adapter);
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
