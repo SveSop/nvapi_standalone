@@ -45,9 +45,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 #if defined(__i386__) || defined(__x86_64__)
 
 Display *display;
-int clocks;
-int gputemp;
-int gpumaxtemp;
+int clocks, gputemp, gpumaxtemp, gpuvram;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -904,6 +902,22 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGp
     return NVAPI_OK;
 }
 
+/* Get ram from NVCtrl */
+static int get_nv_vram(void)
+{
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool nv_vram=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CLOCK_FREQS, &gpuvram);
+    if (!nv_vram) {
+            FIXME("invalid display: %d\n", gpuvram);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        }
+    XCloseDisplay(display);
+    return (nv_vram);
+}
+
 /* Another Memory return function */
 static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_DISPLAY_DRIVER_MEMORY_INFO *pMemoryInfo)
 {
@@ -914,11 +928,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
 
     if (!pMemoryInfo)
         return NVAPI_INVALID_ARGUMENT;
-
-    pMemoryInfo->dedicatedVideoMemory = 4096; /* 4GB GTX 970 */
-    pMemoryInfo->availableDedicatedVideoMemory = 4096;
-    pMemoryInfo->sharedSystemMemory = 8192; /* 2 x Physical VRAM */
-    pMemoryInfo->curAvailableDedicatedVideoMemory = 3896; /* Fake some 5% memory usage */
+    get_nv_vram();
+    int physvram = (gpuvram / 1000);
+    pMemoryInfo->dedicatedVideoMemory = physvram; /* Report physical vram */
+    pMemoryInfo->availableDedicatedVideoMemory = physvram;
+    pMemoryInfo->sharedSystemMemory = (physvram * 2); /* 2 x Physical VRAM */
+    pMemoryInfo->curAvailableDedicatedVideoMemory = (physvram * 0.95); /* Fake some 5% memory usage */
     return NVAPI_OK;
 }
 
