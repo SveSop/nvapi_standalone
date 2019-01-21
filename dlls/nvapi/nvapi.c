@@ -692,17 +692,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     return NVAPI_OK;
 }
 
-/* GPU Usage */
-static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, NV_USAGES_INFO *pUsagesInfo)
+static int get_gpu_usage(void)
 {
-    TRACE("(%p, %p)\n", hPhysicalGpu, pUsagesInfo);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-
     if (!(display = XOpenDisplay(NULL))) {
                 TRACE("(%p)\n", XDisplayName(NULL));
                 return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
@@ -717,6 +708,22 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
             FIXME("invalid display: %s\n", gfxload);
             return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
         }
+    XCloseDisplay(display);
+    return (gpu_load);
+}
+
+/* GPU Usage */
+static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, NV_USAGES_INFO *pUsagesInfo)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pUsagesInfo);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    get_gpu_usage();
     const char delims[] = ",";
     char *result = strtok(gfxload, delims);
     memmove(result, result+9, strlen(result));
@@ -724,7 +731,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
     pUsagesInfo->flags = 0;
     pUsagesInfo->usages[0].bIsPresent = 1;
     pUsagesInfo->usages[0].percentage = strtoul(result, &result, 10);
-    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
@@ -752,9 +758,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
+    get_gpu_usage();
+    const char delims[] = ",";
+    char *result = strtok(gfxload, delims);
+    memmove(result, result+9, strlen(result));
     pDynamicPstatesInfoEx->flags = 1;
     pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;
-    pDynamicPstatesInfoEx->utilization[0].percentage = 100;
+    pDynamicPstatesInfoEx->utilization[0].percentage = strtoul(result, &result, 10);
     return NVAPI_OK;
 }
 
