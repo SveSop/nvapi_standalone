@@ -45,7 +45,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 #if defined(__i386__) || defined(__x86_64__)
 
 Display *display;
-int clocks, gputemp, gpumaxtemp, gpuvram, pciid;
+int clocks, gputemp, gpumaxtemp, gpuvram, pciid, pcibus;
 char *gfxload;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
@@ -956,8 +956,18 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    *pBusId = 1;
-
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    /* Get PCI_BUS_ID from NVCtrl */
+    Bool bus=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_PCI_BUS, &pcibus);
+    if (!bus) {
+            FIXME("invalid display: %d\n", pcibus);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pBusId = (uint)pcibus;
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
