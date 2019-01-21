@@ -111,7 +111,7 @@ typedef struct
     struct {
 	NvU32 bIsPresent;
         NvU32 percentage;
-        NvU32 reserved:2;
+        NvU32 unknown:2;
     } usages[8];
 } NV_USAGES_INFO_V1;
 

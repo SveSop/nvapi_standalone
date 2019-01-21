@@ -645,7 +645,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     get_nv_clocks();
     int gpu=(clocks >> 16);
     short memclk=clocks;
-    pClkFreqs->ClockType = 0;
+    pClkFreqs->ClockType = 0; /* Current clocks */
+    pClkFreqs->reserved = 0; /* These bits are reserved for future use. Must be set to 0. */
     pClkFreqs->domain[0].bIsPresent = 1;
     pClkFreqs->domain[0].frequency = (gpu * 1000); /* Core clock */
     pClkFreqs->domain[4].bIsPresent = 1;
@@ -683,10 +684,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0; /* Hopefully "Performance mode" */
-    pPstatesInfo->pstates[0].clocks[3] = 1350000; /* "Boost/OC" GPU clock */
-    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000); /* Should be current GPU clock? */
+    pPstatesInfo->pstates[0].reserved = 0; /* These bits are reserved for future use (must be always 0) ref. NV Docs */
+    pPstatesInfo->pstates[0].clocks[0] = 1; /* Enable clock? */
+    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000); /* Current GPU clock? */
     pPstatesInfo->pstates[1].pstateId = 0;
-    pPstatesInfo->pstates[1].clocks[0] = 3500000; /* "Boost/OC" VRAM clock */
+    pPstatesInfo->pstates[1].reserved = 0; /* These bits are reserved for future use (must be always 0) ref. NV Docs */
+    pPstatesInfo->pstates[1].clocks[0] = 1; /* Enable clock? */
     pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000); /* Seems to be "current" VRAM clock */
     pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     return NVAPI_OK;
