@@ -45,7 +45,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 #if defined(__i386__) || defined(__x86_64__)
 
 Display *display;
-int clocks, gputemp, gpumaxtemp, gpuvram;
+int clocks, gputemp, gpumaxtemp, gpuvram, pciid;
 char *gfxload;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
@@ -751,7 +751,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu,
     return NVAPI_OK;
 }
 
-/* Seems to fake GPU load in "Performance mode" */
+/* Get GPU load in "Performance mode" */
 static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_DYNAMIC_PSTATES_INFO_EX *pDynamicPstatesInfoEx)
 {
     TRACE("(%p, %p)\n", hPhysicalGpu, pDynamicPstatesInfoEx);
@@ -827,7 +827,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
     return NVAPI_OK;
 }
 
-/* Fake MSI nVidia GTX970 PCI ID's */
+/* Get device and vendor id from NVCtrl to create NVAPI PCI ID's */
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
 {
     TRACE("(%p, %p, %p, %p, %p)\n", hPhysicalGPU, pDeviceId, pSubSystemId, pRevisionId, pExtDeviceId);
@@ -837,12 +837,25 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-
-    *pDeviceId = 331485406;
-    *pSubSystemId = 828380258;
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    /* Grab Device and vendor ID string from NVCtrl */
+    Bool id=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_PCI_ID, &pciid);
+    if (!id) {
+            FIXME("invalid display: %d\n", pciid);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    /* Need to reverse the ID from NVCtrl to satisfy NVAPI */
+    uint ven=(pciid >> 16);
+    short dev=pciid;
+    uint32_t devid=(uint32_t) dev << 16 | ven;
+    *pDeviceId = devid; /* Final device and vendor ID */
+    *pSubSystemId = 828380258; /* MSI board maker - NVCtrl does not have this, so fake it */
     *pRevisionId = 161;
     *pExtDeviceId = 0;
-
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
