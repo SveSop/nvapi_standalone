@@ -44,6 +44,15 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 * More fake memory settings
 * Loads of useless crap  
 * Implementing using NVCtrl interface to get real values  
+* NVCtrl reads:  
+  * GPU Load %  
+  * GPU Memory amount  
+  * GPU Name  
+  * Bios version  
+  * Driver version (Need fix for branch version)  
+  * GPU Vendor:Device ID's  
+  * GPU Temp  
+  * GPU / Memory clocks  
 
 ## Working on  
 

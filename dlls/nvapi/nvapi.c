@@ -45,8 +45,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 #if defined(__i386__) || defined(__x86_64__)
 
 Display *display;
-int clocks, gputemp, gpumaxtemp, gpuvram, pciid, pcibus;
-char *gfxload;
+int clocks, gputemp, gpumaxtemp, gpuvram;
+char *gfxload, *nvver;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -300,26 +300,29 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromGPUID(NvPhysicalGpuHandle gpuH
     return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
+static int get_nv_driver_version(void)
 {
-    NvAPI_ShortString build_str = {'r','4','1','5','_','0','0','-','1','8','9',0};
-    char *adapter;
-
     if (!(display = XOpenDisplay(NULL))) {
         TRACE("(%p)\n", XDisplayName(NULL));
         return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
     }
-
-    Bool check=XNVCTRLQueryTargetStringAttribute(display,
+    Bool drvver=XNVCTRLQueryTargetStringAttribute(display,
                                                 NV_CTRL_TARGET_TYPE_GPU,
                                                 0, // target_id
                                                 0, // display_mask
-                                                NV_CTRL_STRING_PRODUCT_NAME,
-                                                &adapter);
-    if (!check) {
+                                                NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,
+                                                &nvver);
+    if (!drvver) {
+        FIXME("invalid driver: %s\n", nvver);
         return NVAPI_INVALID_POINTER;
     }
+    XCloseDisplay(display);
+    return (drvver);
+}
 
+static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
+{
+    char *adapter;
     TRACE("(%p, %p)\n", hNvDisplay, pVersion);
 
     if (hNvDisplay && hNvDisplay != FAKE_DISPLAY)
@@ -330,10 +333,28 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
 
     if (!pVersion)
         return NVAPI_INVALID_ARGUMENT;
-
-    pVersion->drvVersion = 41522;
+    /* Return driver version */
+    get_nv_driver_version();
+    strcpy(pVersion->szBuildBranchString, nvver); /* Full driver version string */
+    /* Create "short" driver version */
+    strcpy(&nvver[3], &nvver[3 + 1]);
+    pVersion->drvVersion = strtoul(nvver, &nvver, 10); /* Short driver version string */
     pVersion->bldChangeListNum = 0;
-    memcpy(pVersion->szBuildBranchString, build_str, sizeof(build_str));
+
+    /* Get Adaptername from NVCtrl */
+    if (!(display = XOpenDisplay(NULL))) {
+        TRACE("(%p)\n", XDisplayName(NULL));
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool check=XNVCTRLQueryTargetStringAttribute(display,
+                                                NV_CTRL_TARGET_TYPE_GPU,
+                                                0, // target_id
+                                                0, // display_mask
+                                                NV_CTRL_STRING_PRODUCT_NAME,
+                                                &adapter);
+    if (!check) {
+        return NVAPI_INVALID_POINTER;
+    }
     strcpy(pVersion->szAdapterString, adapter);
     XCloseDisplay(display);
     return NVAPI_OK;
@@ -498,7 +519,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu
 
     if (!(display = XOpenDisplay(NULL))) {
         TRACE("(%p)\n", XDisplayName(NULL));
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+        return NVAPI_ERROR;
     }
 
     Bool check=XNVCTRLQueryTargetStringAttribute(display,
@@ -508,22 +529,22 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu
                                                 NV_CTRL_STRING_PRODUCT_NAME,
                                                 &adapter);
     if (!check) {
-        return NVAPI_INVALID_POINTER;
+        return NVAPI_ERROR;
     }
 
     TRACE("(%p, %p)\n", hPhysicalGpu, szName);
 
     if (!hPhysicalGpu)
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        return NVAPI_ERROR;
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
     {
         FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_INVALID_HANDLE;
+        return NVAPI_ERROR;
     }
 
     if (!szName)
-        return NVAPI_INVALID_ARGUMENT;
+        return NVAPI_ERROR;
 
     strcpy(szName, adapter);
     XCloseDisplay(display);
@@ -555,18 +576,23 @@ static NvAPI_Status CDECL NvAPI_EnumNvidiaDisplayHandle(NvU32 thisEnum, NvDispla
     return NVAPI_OK;
 }
 
+/* Set driver short version and branch string */
 static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVersion, NvAPI_ShortString szBuildBranchString)
 {
     NvAPI_ShortString build_str = {'r','4','1','0','_','0','0',0};
-
+    FIXME("Need fixing %s", build_str);
     TRACE("(%p, %p)\n", pDriverVersion, szBuildBranchString);
 
     if (!pDriverVersion || !szBuildBranchString)
         return NVAPI_INVALID_POINTER;
 
-    memcpy(szBuildBranchString, build_str, sizeof(build_str));
-    *pDriverVersion = 41522;
+    /* Return driver version */
+    get_nv_driver_version();
+    /* Create "short" driver version */
+    strcpy(&nvver[3], &nvver[3 + 1]);
+    *pDriverVersion = strtoul(nvver, &nvver, 10); /* Short driver version string */
 
+    memcpy(szBuildBranchString, build_str, sizeof(build_str));
     return NVAPI_OK;
 }
 
@@ -804,11 +830,10 @@ static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalG
     return NVAPI_OK;
 }
 
-/* Fake nVidia BIOS Version */
+/* Get nVidia BIOS Version from NVCtrl */
 static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGPU, NvAPI_ShortString szBiosRevision)
 {
-    NvAPI_ShortString version = {'8','4','.','0','4','.','3','6','.','0','0','.','f','1',0};
-
+    char *biosver;
     TRACE("(%p, %p)\n", hPhysicalGPU, szBiosRevision);
 
     if (!hPhysicalGPU)
@@ -816,20 +841,32 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
     {
-        FIXME("invalid handle: %p\n", hPhysicalGPU);
-        return NVAPI_INVALID_HANDLE;
+        FIXME("invalid argument: %p\n", hPhysicalGPU);
+        return NVAPI_INVALID_ARGUMENT;
+    }
+    if (!(display = XOpenDisplay(NULL))) {
+        TRACE("(%p)\n", XDisplayName(NULL));
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool biosv=XNVCTRLQueryTargetStringAttribute(display,
+                                                NV_CTRL_TARGET_TYPE_GPU,
+                                                0, // target_id
+                                                0, // display_mask
+                                                NV_CTRL_STRING_VBIOS_VERSION,
+                                                &biosver);
+    if (!biosv) {
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
     }
 
-    if (!szBiosRevision)
-        return NVAPI_INVALID_ARGUMENT;
-
-    memcpy(szBiosRevision, version, sizeof(version));
+    strcpy(szBiosRevision, biosver);
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
 /* Get device and vendor id from NVCtrl to create NVAPI PCI ID's */
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
 {
+    int pciid;
     TRACE("(%p, %p, %p, %p, %p)\n", hPhysicalGPU, pDeviceId, pSubSystemId, pRevisionId, pExtDeviceId);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -948,6 +985,7 @@ static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDe
 /* Nvidia GPU BusID */
 static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusId)
 {
+    int pcibus;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pBusId);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1027,7 +1065,7 @@ static int get_nv_vram(void)
                 TRACE("(%p)\n", XDisplayName(NULL));
 		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
     }
-    Bool nv_vram=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CLOCK_FREQS, &gpuvram);
+    Bool nv_vram=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_VIDEO_RAM, &gpuvram);
     if (!nv_vram) {
             FIXME("invalid display: %d\n", gpuvram);
             return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
