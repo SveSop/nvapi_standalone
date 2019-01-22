@@ -335,10 +335,10 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
         return NVAPI_INVALID_ARGUMENT;
     /* Return driver version */
     get_nv_driver_version();
-    strcpy(pVersion->szBuildBranchString, nvver); /* Full driver version string */
+    strcpy(pVersion->szBuildBranchString, nvver);	/* Full driver version string */
     /* Create "short" driver version */
     strcpy(&nvver[3], &nvver[3 + 1]);
-    pVersion->drvVersion = strtoul(nvver, &nvver, 10); /* Short driver version string */
+    pVersion->drvVersion = strtoul(nvver, &nvver, 10);	/* Short driver version string */
     pVersion->bldChangeListNum = 0;
 
     /* Get Adaptername from NVCtrl */
@@ -355,7 +355,7 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     if (!check) {
         return NVAPI_INVALID_POINTER;
     }
-    strcpy(pVersion->szAdapterString, adapter);
+    strcpy(pVersion->szAdapterString, adapter);		/* Report adapter name from NvAPI */
     XCloseDisplay(display);
     return NVAPI_OK;
 }
@@ -546,7 +546,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu
     if (!szName)
         return NVAPI_ERROR;
 
-    strcpy(szName, adapter);
+    strcpy(szName, adapter);			/* Report adapter name from NvAPI */
     XCloseDisplay(display);
     return NVAPI_OK;
 }
@@ -579,8 +579,6 @@ static NvAPI_Status CDECL NvAPI_EnumNvidiaDisplayHandle(NvU32 thisEnum, NvDispla
 /* Set driver short version and branch string */
 static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVersion, NvAPI_ShortString szBuildBranchString)
 {
-    NvAPI_ShortString build_str = {'r','4','1','0','_','0','0',0};
-    FIXME("Need fixing %s", build_str);
     TRACE("(%p, %p)\n", pDriverVersion, szBuildBranchString);
 
     if (!pDriverVersion || !szBuildBranchString)
@@ -588,12 +586,19 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVers
 
     /* Return driver version */
     get_nv_driver_version();
+    NvAPI_ShortString build_str = "R0_00"; 		/* Empty "branch" string */
+    char *branch = nvver;
     /* Create "short" driver version */
     strcpy(&nvver[3], &nvver[3 + 1]);
-    *pDriverVersion = strtoul(nvver, &nvver, 10); /* Short driver version string */
-
-    memcpy(szBuildBranchString, build_str, sizeof(build_str));
+    *pDriverVersion = strtoul(nvver, &nvver, 10); 	/* Short driver version string from NvAPI */
+    /* Create "branch" version */
+    strcpy(&branch[2], &branch[7 + 1]); 		/*  Get "major" version			*/
+    lstrcpynA(szBuildBranchString, build_str, 1);	/*					*/
+    szBuildBranchString[1] = '\0';			/*  Copy strings together		*/
+    strcat(szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
+    memcpy(szBuildBranchString, build_str, + 1);	/*  Final branch version from NvAPI	*/
     return NVAPI_OK;
+    /* Assumption: 415.22.05 is from the R410 driver "branch" (Not verified) */
 }
 
 static NvAPI_Status CDECL NvAPI_Unload(void)
@@ -671,12 +676,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     get_nv_clocks();
     int gpu=(clocks >> 16);
     short memclk=clocks;
-    pClkFreqs->ClockType = 0; /* Current clocks */
-    pClkFreqs->reserved = 0; /* These bits are reserved for future use. Must be set to 0. */
+    pClkFreqs->ClockType = 0;					/* Current clocks */
+    pClkFreqs->reserved = 0;					/* These bits are reserved for future use. Must be set to 0. */
     pClkFreqs->domain[0].bIsPresent = 1;
-    pClkFreqs->domain[0].frequency = (gpu * 1000); /* Core clock */
+    pClkFreqs->domain[0].frequency = (gpu * 1000);		/* Core clock */
     pClkFreqs->domain[4].bIsPresent = 1;
-    pClkFreqs->domain[4].frequency = (memclk * 1000); /* Memory clock (DDR type clock) */
+    pClkFreqs->domain[4].frequency = (memclk * 1000);		/* Memory clock (DDR type clock) */
     return NVAPI_OK;
 }
 
@@ -690,7 +695,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysic
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    *pCurrentPstate = 0;
+    *pCurrentPstate = 0;					/* "Performance mode" pstate0 */
     return NVAPI_OK;
 }
 
@@ -709,14 +714,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = 0; /* Hopefully "Performance mode" */
-    pPstatesInfo->pstates[0].reserved = 0; /* These bits are reserved for future use (must be always 0) ref. NV Docs */
-    pPstatesInfo->pstates[0].clocks[0] = 1; /* Enable clock? */
-    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000); /* Current GPU clock? */
+    pPstatesInfo->pstates[0].pstateId = 0;			/* Hopefully "Performance mode" */
+    pPstatesInfo->pstates[0].reserved = 0;			/* These bits are reserved for future use (must be always 0) ref. NV Docs */
+    pPstatesInfo->pstates[0].clocks[0] = 1;			/* Enable clock? */
+    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000);		/* Current GPU clock? */
     pPstatesInfo->pstates[1].pstateId = 0;
-    pPstatesInfo->pstates[1].reserved = 0; /* These bits are reserved for future use (must be always 0) ref. NV Docs */
-    pPstatesInfo->pstates[1].clocks[0] = 1; /* Enable clock? */
-    pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000); /* Seems to be "current" VRAM clock */
+    pPstatesInfo->pstates[1].reserved = 0;			/* These bits are reserved for future use (must be always 0) ref. NV Docs */
+    pPstatesInfo->pstates[1].clocks[0] = 1;			/* Enable clock */
+    pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000);	/* Current VRAM clock */
     pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     return NVAPI_OK;
 }
@@ -756,7 +761,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
     const char delims[] = ",";
     char *result = strtok(gfxload, delims);
     memmove(result, result+9, strlen(result));
-
     pUsagesInfo->flags = 0;
     pUsagesInfo->usages[0].bIsPresent = 1;
     pUsagesInfo->usages[0].percentage = strtoul(result, &result, 10);
@@ -773,7 +777,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu,
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    *pGpuType = 2; /* Discrete GPU Type */
+    *pGpuType = 2; 							/* Discrete GPU Type */
     return NVAPI_OK;
 }
 
@@ -884,12 +888,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
             FIXME("invalid display: %d\n", pciid);
             return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Need to reverse the ID from NVCtrl to satisfy NVAPI */
+    /* Need to swap high/low word in the ID from NVCtrl to satisfy NVAPI */
     uint ven=(pciid >> 16);
     short dev=pciid;
     uint32_t devid=(uint32_t) dev << 16 | ven;
-    *pDeviceId = devid; /* Final device and vendor ID */
-    *pSubSystemId = 828380258; /* MSI board maker - NVCtrl does not have this, so fake it */
+    *pDeviceId = devid; 				/* Final device and vendor ID */
+    *pSubSystemId = 828380258; 				/* MSI board maker - NVCtrl does not have this, so fake it */
     *pRevisionId = 161;
     *pExtDeviceId = 0;
     XCloseDisplay(display);
@@ -908,7 +912,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
     }
 
     *pValue = 2000;
-
     return NVAPI_OK;
 }
 
@@ -959,15 +962,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhys
     pThermalSettings->count = 1;
     pThermalSettings->sensor[0].controller = 1; /* Gpu_Internal */
     pThermalSettings->sensor[0].defaultMinTemp = 0;
-    pThermalSettings->sensor[0].defaultMaxTemp = (get_gpu_maxtemp(), gpumaxtemp); /* GPU max temp threshold */
-    pThermalSettings->sensor[0].currentTemp = (get_gpu_temp(), gputemp); /* Current GPU Temp */
-    pThermalSettings->sensor[0].target = 1; /* GPU */
-    pThermalSettings->sensor[1].controller = 1; /* Gpu_Internal */
+    pThermalSettings->sensor[0].defaultMaxTemp = (get_gpu_maxtemp(), gpumaxtemp);	/* GPU max temp threshold */
+    pThermalSettings->sensor[0].currentTemp = (get_gpu_temp(), gputemp); 		/* Current GPU Temp */
+    pThermalSettings->sensor[0].target = 1;						/* GPU */
+    pThermalSettings->sensor[1].controller = 1;						/* Gpu_Internal */
     pThermalSettings->sensor[1].defaultMinTemp = 0;
     pThermalSettings->sensor[1].defaultMaxTemp = 40;
-    pThermalSettings->sensor[1].currentTemp = 25; /* Memory Temp */
-    pThermalSettings->sensor[1].target = 2; /* Memory */
-
+    pThermalSettings->sensor[1].currentTemp = 25;					/* "Fake" Memory Temp */
+    pThermalSettings->sensor[1].target = 2;						/* Memory */
     return NVAPI_OK;
 }
 
@@ -1086,10 +1088,10 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
         return NVAPI_INVALID_ARGUMENT;
     get_nv_vram();
     int physvram = (gpuvram / 1000);
-    pMemoryInfo->dedicatedVideoMemory = physvram; /* Report physical vram */
+    pMemoryInfo->dedicatedVideoMemory = physvram;				/* Report physical vram */
     pMemoryInfo->availableDedicatedVideoMemory = physvram;
-    pMemoryInfo->sharedSystemMemory = (physvram * 2); /* 2 x Physical VRAM */
-    pMemoryInfo->curAvailableDedicatedVideoMemory = (physvram * 0.95); /* Fake some 5% memory usage */
+    pMemoryInfo->sharedSystemMemory = (physvram * 2);				/* 2 x Physical VRAM */
+    pMemoryInfo->curAvailableDedicatedVideoMemory = (physvram * 0.95);		/* Fake 5% memory usage */
     return NVAPI_OK;
 }
 

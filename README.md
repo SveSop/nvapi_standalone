@@ -49,7 +49,7 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
   * GPU Memory amount  
   * GPU Name  
   * Bios version  
-  * Driver version (Need fix for branch version)  
+  * Driver and branch version  
   * GPU Vendor:Device ID's  
   * GPU Temp  
   * GPU / Memory clocks  
@@ -57,7 +57,7 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 ## Working on  
 
 * Changing "fake" values over to using NVCtrl library.  
-* For some reason adding NvAPI_GPU_GetBusId the tool "GPU Caps Viewer" now display CUDA correctly, but no OpenCL.
+* For some reason adding NvAPI_GPU_GetBusId the tool "GPU Caps Viewer" now display CUDA correctly, but no OpenCL (but it works).
 
 ## Info  
 
