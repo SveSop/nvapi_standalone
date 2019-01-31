@@ -1080,6 +1080,7 @@ static int get_nv_vram(void)
 /* Another Memory return function */
 static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_DISPLAY_DRIVER_MEMORY_INFO *pMemoryInfo)
 {
+    int dedram, usedvram;
     TRACE("(%p, %p)\n", hPhysicalGpu, pMemoryInfo);
 
     if (!hPhysicalGpu)
@@ -1087,12 +1088,27 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
 
     if (!pMemoryInfo)
         return NVAPI_INVALID_ARGUMENT;
-    get_nv_vram();
-    int physvram = (gpuvram / 1024);						/* Ram in MB */
-    pMemoryInfo->dedicatedVideoMemory = physvram;				/* Report physical vram */
-    pMemoryInfo->availableDedicatedVideoMemory = physvram;
-    pMemoryInfo->sharedSystemMemory = (physvram * 2);				/* 2 x Physical VRAM */
-    pMemoryInfo->curAvailableDedicatedVideoMemory = (physvram * 0.95);		/* Fake 5% memory usage */
+
+    get_nv_vram();								/* Get total vram */
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool mem=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY, &dedram);
+    if (!mem) {
+            FIXME("invalid display: %d\n", dedram);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        }
+    pMemoryInfo->dedicatedVideoMemory = gpuvram;				/* Report dedicated as total vram */
+    pMemoryInfo->availableDedicatedVideoMemory = dedram * 1024;			/* Get available dedicated vram in kb */
+    pMemoryInfo->sharedSystemMemory = dedram * 2048;				/* 2 x dedicated vram in kb */
+    Bool memused=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_USED_DEDICATED_GPU_MEMORY, &usedvram);
+    if (!memused) {
+            FIXME("invalid display: %d\n", usedvram);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        }
+    pMemoryInfo->curAvailableDedicatedVideoMemory = (dedram - usedvram) * 1024;		/* Dedicated memory usage in kb */
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
