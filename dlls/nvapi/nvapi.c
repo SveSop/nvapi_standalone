@@ -802,9 +802,10 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
     return NVAPI_OK;
 }
 
-/* Fake GPU Volt */
+/* Get Core Volt */
 static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle hPhysicalGpu, NV_VOLT_STATUS *pVoltStatus)
 {
+    int corevolt;
     TRACE("(%p, %p)\n", hPhysicalGpu, pVoltStatus);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -812,11 +813,20 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle 
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool gpuvolt=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CORE_VOLTAGE, &corevolt);
+    if (!gpuvolt) {
+            FIXME("invalid display: %d\n", corevolt);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
     pVoltStatus->flags = 0;
     pVoltStatus->count = 1;
-    pVoltStatus->value_uV = 1200000;
+    pVoltStatus->value_uV = corevolt;
     pVoltStatus->buf1 = 1;
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
