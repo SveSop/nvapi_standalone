@@ -1088,7 +1088,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
     if (!pMemoryInfo)
         return NVAPI_INVALID_ARGUMENT;
     get_nv_vram();
-    int physvram = (gpuvram / 1000);
+    int physvram = (gpuvram / 1024);						/* Ram in MB */
     pMemoryInfo->dedicatedVideoMemory = physvram;				/* Report physical vram */
     pMemoryInfo->availableDedicatedVideoMemory = physvram;
     pMemoryInfo->sharedSystemMemory = (physvram * 2);				/* 2 x Physical VRAM */
@@ -1163,35 +1163,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
     return NVAPI_OK;
 }
 
-static NvU32 get_video_memory(void)
-{
-    static NvU32 cache;
-    struct wined3d_adapter_identifier identifier;
-    struct wined3d *wined3d;
-    HRESULT hr = E_FAIL;
-
-    if (cache) return cache;
-
-    memset(&identifier, 0, sizeof(identifier));
-
-    wined3d_mutex_lock();
-    wined3d = wined3d_create(0);
-    if (wined3d)
-    {
-        hr = wined3d_get_adapter_identifier(wined3d, 0, 0, &identifier);
-        wined3d_decref(wined3d);
-    }
-    wined3d_mutex_unlock();
-
-    if (SUCCEEDED(hr))
-    {
-        cache = identifier.video_memory / 1024;
-        return cache;
-    }
-
-    return 1024 * 1024; /* fallback: 1GB */
-}
-
 static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSize)
 {
     TRACE("(%p, %p)\n", hPhysicalGpu, pSize);
@@ -1208,7 +1179,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHand
     if (!pSize)
         return NVAPI_INVALID_ARGUMENT;
 
-    *pSize = get_video_memory();
+    get_nv_vram();
+    *pSize = gpuvram;
     return NVAPI_OK;
 }
 
@@ -1228,7 +1200,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
     if (!pSize)
         return NVAPI_INVALID_ARGUMENT;
 
-    *pSize = get_video_memory();
+    get_nv_vram();
+    *pSize = gpuvram * 2;		/* Somewhat safe to assume "virtual" framebuffer is 2 x vram */
     return NVAPI_OK;
 }
 
