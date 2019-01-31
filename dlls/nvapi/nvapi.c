@@ -1015,6 +1015,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
 /* Shader Pipe Count (Se note below) */
 static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pShaderPipeCount)
 {
+    int numpipes;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pShaderPipeCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1022,16 +1023,26 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhys
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-
-    *pShaderPipeCount = 1664;
-
+    /* NVCtrl NV_CTRL_GPU_CORES seems to provide number of "cores" available */
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool pipecores=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CORES, &numpipes);
+    if (!pipecores) {
+            FIXME("invalid display: %d\n", numpipes);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pShaderPipeCount = numpipes;
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
 /* Uncertain of the difference between shader pipe and shader unit on GTX970.
-   There are 1664 "Shader Units" 						*/
+   "Shader Units" = NVCtrl GPU_CORES ?				*/
 static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
 {
+    int numunits;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1039,9 +1050,17 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-
-    *pCount = 1664;
-
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+                return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool shaderunits=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CORES, &numunits);
+    if (!shaderunits) {
+            FIXME("invalid display: %d\n", numunits);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pCount = numunits;
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
