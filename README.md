@@ -35,7 +35,6 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 
 * Added the NvAPI_GPU_GetSystemType to set "Desktop"  
 * Updated and added a couple of (so far empty) functions.  
-* Fake fan rpm
 * Implementing using NVCtrl interface to get real values  
 * NVCtrl reads:  
   * GPU Load %  
@@ -51,6 +50,7 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
   * Video Memory controller utilization  
   * Get shader/cuda cores from NVCtrl  
   * Read GPU Voltage  
+  * Calculate GPU fan speed
 
 ## Working on  
 
