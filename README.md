@@ -33,30 +33,27 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 
 ## Changes
 
-* Updated faked driverversion to 415 revision + change to GTX 970  
 * Added the NvAPI_GPU_GetSystemType to set "Desktop"  
-* Added NvAPI_GPU_GetVbiosVersionString to output version: BIOS: 84.04.36.00.f1  
 * Updated and added a couple of (so far empty) functions.  
-* Fake GPU MHz and VRAM MHz clocks
-* Fake GPU Volt
-* Changed to use driver 415.22 inline with actual Linux version.
 * Fake fan rpm
-* More fake memory settings
-* Loads of useless crap  
 * Implementing using NVCtrl interface to get real values  
 * NVCtrl reads:  
   * GPU Load %  
   * GPU Memory amount  
   * GPU Name  
+  * GPU BusID  
   * Bios version  
   * Driver and branch version  
   * GPU Vendor:Device ID's  
   * GPU Temp  
   * GPU / Memory clocks  
+  * Video Memory usage  
+  * Video Memory controller utilization  
+  * Get shader/cuda cores from NVCtrl  
+  * Read GPU Voltage  
 
 ## Working on  
 
-* Changing "fake" values over to using NVCtrl library.  
 * For some reason adding NvAPI_GPU_GetBusId the tool "GPU Caps Viewer" now display CUDA correctly, but no OpenCL (but it works).
 
 ## Info  
