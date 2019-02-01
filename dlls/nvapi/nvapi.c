@@ -916,6 +916,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
 /* Fake Fan Speed */
 static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pValue)
 {
+    int fanspeed;
     TRACE("(%p, %p)\n", hPhysicalGPU,  pValue);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -923,8 +924,24 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-
-    *pValue = 2000;
+    if (!(display = XOpenDisplay(NULL))) {
+        TRACE("(%p)\n", XDisplayName(NULL));
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool fanstatus=XNVCTRLQueryTargetAttribute(display,
+                          NV_CTRL_TARGET_TYPE_COOLER,
+                          0, // target_id
+                          0, // display_mask
+                          NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL,
+                          &fanspeed);
+    if (!fanstatus) {
+        FIXME("invalid result: %d\n", fanspeed);
+        return NVAPI_INVALID_POINTER;
+    }
+    /* The value above is in % fan speed. Assuming average fan RPM is 2300 rpm we calculate */
+    /* This value depends on manufacturer, but can be checked with Linux nVidia control panel */
+    *pValue = (fanspeed * 23);		/* Result is 23 x % - eg: 100% = 2300 */
+    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
