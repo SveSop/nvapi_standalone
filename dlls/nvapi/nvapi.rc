@@ -22,7 +22,7 @@
 #include "winver.h"
 
 #define WINE_FILENAME_STR "nvapi.dll"
-#define WINE_FILEDESCRIPTION_STR "NVIDIA NVAPI Library, Version 417.35"
+#define WINE_FILEDESCRIPTION_STR "NVIDIA NVAPI Library, Version 415.22"
 
 #define WINE_FILEVERSION      25,21,14,1735
 #define WINE_FILEVERSION_STR "25.21.14.1735"
