@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2015 Michael Müller
  * Copyright (C) 2015 Sebastian Lackner
+ * Copyright (C) 2019 Sveinar Søpler
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -719,11 +720,11 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->pstates[0].reserved = 0;			/* These bits are reserved for future use (must be always 0) ref. NV Docs */
     pPstatesInfo->pstates[0].clocks[0] = 1;			/* Enable clock? */
     pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000);		/* Current GPU clock? */
+    pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     pPstatesInfo->pstates[1].pstateId = 0;
     pPstatesInfo->pstates[1].reserved = 0;			/* These bits are reserved for future use (must be always 0) ref. NV Docs */
     pPstatesInfo->pstates[1].clocks[0] = 1;			/* Enable clock */
     pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000);	/* Current VRAM clock */
-    pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     return NVAPI_OK;
 }
 
@@ -758,13 +759,15 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    get_gpu_usage();
-    const char delims[] = ",";
-    char *result = strtok(gfxload, delims);
-    memmove(result, result+9, strlen(result));
-    pUsagesInfo->flags = 0;
+    get_gpu_usage();								/* NVCtrl output a string with usages */
+    char *gpuuse = strtok_r(gfxload, ",", &gfxload);				/* Conversion */
+    memmove(gpuuse, gpuuse+9, strlen(gpuuse));					/* Magic      */
+    pUsagesInfo->flags = 1;
     pUsagesInfo->usages[0].bIsPresent = 1;
-    pUsagesInfo->usages[0].percentage = strtoul(result, &result, 10);
+    pUsagesInfo->usages[0].percentage[0] = strtoul(gpuuse, &gpuuse, 10);	/* This is GPU usage % */
+    char *memuse = strtok_r(gfxload, ",", &gfxload);				/* Conversion */
+    memmove(memuse, memuse+8, strlen(memuse));					/* Magic      */
+    pUsagesInfo->usages[0].percentage[4] = strtoul(memuse, &memuse, 10);	/* This is Memory controller usage % */
     return NVAPI_OK;
 }
 
@@ -792,9 +795,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    get_gpu_usage();
-    const char delims[] = ",";
-    char *result = strtok(gfxload, delims);
+    get_gpu_usage();							/* Get string of usages from NVCtrl */
+    char *result = strtok_r(gfxload, ",", &gfxload);
     memmove(result, result+9, strlen(result));
     pDynamicPstatesInfoEx->flags = 1;
     pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 Michael Müller
+ * Copyright (C) 2019 Sveinar Søpler
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -110,7 +111,7 @@ typedef struct
     NvU32 flags;
     struct {
 	NvU32 bIsPresent;
-        NvU32 percentage;
+        NvU32 percentage[5];
         NvU32 unknown:2;
     } usages[8];
 } NV_USAGES_INFO_V1;
@@ -132,10 +133,10 @@ typedef struct
        NvU32 clocks[NVAPI_MAX_GPU_PSTATE20_CLOCKS];
        NvU32 baseVoltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
     } pstates[16];
-          struct {
-          NvU32 numVoltages;
-          NvU32 voltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
-       } ov;
+       struct {
+       NvU32 numVoltages;
+       NvU32 voltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
+    } ov;
 } NV_GPU_PERF_PSTATES20_INFO_V2;
 
 #define NV_GPU_PERF_PSTATES20_INFO_VER2 MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES20_INFO_V2, 2)
