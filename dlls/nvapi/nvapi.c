@@ -785,6 +785,32 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu,
     return NVAPI_OK;
 }
 
+/* GPU Memory bandwidth and Location */
+static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hPhysicalGpu, NvU32* pWidth, NvU32* pLocation)
+{
+    int bwidth;
+    TRACE("(%p, %p, %p)\n", hPhysicalGpu, pWidth, pLocation);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    *pLocation = 0;						/* Unsure what this value indicates "onboard"? */
+    Bool buswidth=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_MEMORY_BUS_WIDTH, &bwidth);
+    if (!buswidth) {
+            FIXME("invalid display: %d\n", bwidth);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pWidth = bwidth;
+    XCloseDisplay(display);
+    return NVAPI_OK;
+}
+
 /* Get GPU load in "Performance mode" */
 static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_DYNAMIC_PSTATES_INFO_EX *pDynamicPstatesInfoEx)
 {
@@ -1469,6 +1495,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0xc33baeb1, NvAPI_GPU_GetGPUType},
 	{0x189a1fdf, NvAPI_GPU_GetUsages},
 	{0xe4715417, NvAPI_GPU_GetIRQ},
+	{0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);

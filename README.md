@@ -52,6 +52,7 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
   * Read GPU Voltage  
   * Calculate GPU fan speed
   * Get IRQ  
+  * Implement video memory bandwidth  
 
 ## Working on  
 
