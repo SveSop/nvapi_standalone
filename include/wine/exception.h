@@ -61,10 +61,12 @@ extern "C" {
  * use GetExceptionInformation() and GetExceptionCode() to retrieve the
  * exception info.
  *
- * Warning: inside a __TRY or __EXCEPT block, 'break' or 'continue' statements
- *          break out of the current block. You cannot use 'return', 'goto'
- *          or 'longjmp' to leave a __TRY block, as this will surely crash.
- *          You can use them to leave a __EXCEPT block though.
+ * Warning: Inside a __TRY or __EXCEPT block, 'break' or 'continue' statements
+ *          break out of the current block, but avoid using them because they
+ *          won't work when compiling with native exceptions. You cannot use
+ *          'return', 'goto', or 'longjmp' to leave a __TRY block either, as
+ *          this will surely crash. You can use 'return', 'goto', or 'longjmp'
+ *          to leave an __EXCEPT block though.
  *
  * -- AJ
  */
@@ -90,7 +92,7 @@ extern "C" {
 
 #else  /* USE_COMPILER_EXCEPTIONS */
 
-#if defined(__MINGW32__) || defined(__CYGWIN__)
+#if defined(__MINGW32__) || defined(__CYGWIN__) || defined(__WINE_SETJMP_H)
 #define sigjmp_buf jmp_buf
 #define sigsetjmp(buf,sigs) setjmp(buf)
 #define siglongjmp(buf,val) longjmp(buf,val)
@@ -301,13 +303,6 @@ static inline EXCEPTION_REGISTRATION_RECORD *__wine_get_frame(void)
 #define EXCEPTION_WINE_STUB       0x80000100  /* stub entry point called */
 #define EXCEPTION_WINE_ASSERTION  0x80000101  /* assertion failed */
 #define EXCEPTION_WINE_SYSCALL    0x80000103
-
-/* unhandled return status from vm86 mode */
-#define EXCEPTION_VM86_INTx       0x80000110
-#define EXCEPTION_VM86_STI        0x80000111
-#define EXCEPTION_VM86_PICRETURN  0x80000112
-
-extern void __wine_enter_vm86( CONTEXT *context );
 
 #ifdef __cplusplus
 }

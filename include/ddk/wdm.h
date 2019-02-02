@@ -44,6 +44,7 @@ typedef ULONG_PTR KSPIN_LOCK, *PKSPIN_LOCK;
 
 typedef ULONG_PTR ERESOURCE_THREAD;
 typedef ERESOURCE_THREAD *PERESOURCE_THREAD;
+typedef struct _FILE_GET_QUOTA_INFORMATION *PFILE_GET_QUOTA_INFORMATION;
 
 struct _KDPC;
 struct _KAPC;
@@ -143,6 +144,15 @@ typedef enum _KWAIT_REASON
     MaximumWaitReason,
 } KWAIT_REASON;
 
+typedef struct _KWAIT_BLOCK {
+    LIST_ENTRY WaitListEntry;
+    struct _KTHREAD *RESTRICTED_POINTER Thread;
+    PVOID Object;
+    struct _KWAIT_BLOCK *RESTRICTED_POINTER NextWaitBlock;
+    USHORT WaitKey;
+    USHORT WaitType;
+} KWAIT_BLOCK, *PKWAIT_BLOCK, *RESTRICTED_POINTER PRKWAIT_BLOCK;
+
 typedef struct _IO_TIMER *PIO_TIMER;
 typedef struct _IO_TIMER_ROUTINE *PIO_TIMER_ROUTINE;
 typedef struct _ETHREAD *PETHREAD;
@@ -156,12 +166,14 @@ typedef struct _OBJECT_HANDLE_INFORMATION *POBJECT_HANDLE_INFORMATION;
 typedef struct _ZONE_HEADER *PZONE_HEADER;
 typedef struct _LOOKASIDE_LIST_EX *PLOOKASIDE_LIST_EX;
 
+#define FM_LOCK_BIT 0x1
+
 typedef struct _FAST_MUTEX
 {
     LONG Count;
     PKTHREAD Owner;
     ULONG Contention;
-    KEVENT Gate;
+    KEVENT Event;
     ULONG OldIrql;
 } FAST_MUTEX, *PFAST_MUTEX;
 
@@ -1291,6 +1303,99 @@ typedef struct LOOKASIDE_ALIGN _NPAGED_LOOKASIDE_LIST
 typedef NTSTATUS (NTAPI EX_CALLBACK_FUNCTION)(void *CallbackContext, void *Argument1, void *Argument2);
 typedef EX_CALLBACK_FUNCTION *PEX_CALLBACK_FUNCTION;
 
+typedef ULONG OB_OPERATION;
+
+typedef struct _OB_PRE_CREATE_HANDLE_INFORMATION {
+    ACCESS_MASK DesiredAccess;
+    ACCESS_MASK OriginalDesiredAccess;
+} OB_PRE_CREATE_HANDLE_INFORMATION, *POB_PRE_CREATE_HANDLE_INFORMATION;
+
+typedef struct _OB_PRE_DUPLICATE_HANDLE_INFORMATION {
+    ACCESS_MASK DesiredAccess;
+    ACCESS_MASK OriginalDesiredAccess;
+    PVOID SourceProcess;
+    PVOID TargetProcess;
+} OB_PRE_DUPLICATE_HANDLE_INFORMATION, *POB_PRE_DUPLICATE_HANDLE_INFORMATION;
+
+typedef union _OB_PRE_OPERATION_PARAMETERS {
+    OB_PRE_CREATE_HANDLE_INFORMATION CreateHandleInformation;
+    OB_PRE_DUPLICATE_HANDLE_INFORMATION DuplicateHandleInformation;
+} OB_PRE_OPERATION_PARAMETERS, *POB_PRE_OPERATION_PARAMETERS;
+
+typedef struct _OB_PRE_OPERATION_INFORMATION {
+    OB_OPERATION Operation;
+    union {
+        ULONG Flags;
+        struct {
+            ULONG KernelHandle:1;
+            ULONG Reserved:31;
+        } DUMMYSTRUCTNAME;
+    } DUMMYUNIONNAME;
+    PVOID Object;
+    POBJECT_TYPE ObjectType;
+    PVOID CallContext;
+    POB_PRE_OPERATION_PARAMETERS Parameters;
+} OB_PRE_OPERATION_INFORMATION, *POB_PRE_OPERATION_INFORMATION;
+
+typedef struct _OB_POST_CREATE_HANDLE_INFORMATION {
+    ACCESS_MASK GrantedAccess;
+} OB_POST_CREATE_HANDLE_INFORMATION, *POB_POST_CREATE_HANDLE_INFORMATION;
+
+typedef struct _OB_POST_DUPLICATE_HANDLE_INFORMATION {
+    ACCESS_MASK GrantedAccess;
+} OB_POST_DUPLICATE_HANDLE_INFORMATION, *POB_POST_DUPLICATE_HANDLE_INFORMATION;
+
+typedef union _OB_POST_OPERATION_PARAMETERS {
+    OB_POST_CREATE_HANDLE_INFORMATION CreateHandleInformation;
+    OB_POST_DUPLICATE_HANDLE_INFORMATION DuplicateHandleInformation;
+} OB_POST_OPERATION_PARAMETERS, *POB_POST_OPERATION_PARAMETERS;
+
+typedef struct _OB_POST_OPERATION_INFORMATION {
+    OB_OPERATION Operation;
+    union {
+        ULONG Flags;
+        struct {
+            ULONG KernelHandle:1;
+            ULONG Reserved:31;
+        } DUMMYSTRUCTNAME;
+    } DUMMYUNIONNAME;
+    PVOID Object;
+    POBJECT_TYPE ObjectType;
+    PVOID CallContext;
+    NTSTATUS ReturnStatus;
+    POB_POST_OPERATION_PARAMETERS Parameters;
+} OB_POST_OPERATION_INFORMATION,*POB_POST_OPERATION_INFORMATION;
+
+typedef enum _OB_PREOP_CALLBACK_STATUS {
+    OB_PREOP_SUCCESS
+} OB_PREOP_CALLBACK_STATUS, *POB_PREOP_CALLBACK_STATUS;
+
+typedef OB_PREOP_CALLBACK_STATUS (WINAPI *POB_PRE_OPERATION_CALLBACK)(void *context, POB_PRE_OPERATION_INFORMATION information);
+typedef void (WINAPI *POB_POST_OPERATION_CALLBACK)(void *context, POB_POST_OPERATION_INFORMATION information);
+
+typedef struct _OB_OPERATION_REGISTRATION {
+    POBJECT_TYPE *ObjectType;
+    OB_OPERATION Operations;
+    POB_PRE_OPERATION_CALLBACK PreOperation;
+    POB_POST_OPERATION_CALLBACK PostOperation;
+} OB_OPERATION_REGISTRATION, *POB_OPERATION_REGISTRATION;
+
+typedef struct _OB_CALLBACK_REGISTRATION {
+    USHORT Version;
+    USHORT OperationRegistrationCount;
+    UNICODE_STRING Altitude;
+    PVOID RegistrationContext;
+    OB_OPERATION_REGISTRATION *OperationRegistration;
+} OB_CALLBACK_REGISTRATION, *POB_CALLBACK_REGISTRATION;
+
+#define OB_FLT_REGISTRATION_VERSION_0100  0x0100
+#define OB_FLT_REGISTRATION_VERSION OB_FLT_REGISTRATION_VERSION_0100
+
+typedef enum _DIRECTORY_NOTIFY_INFORMATION_CLASS {
+    DirectoryNotifyInformation = 1,
+    DirectoryNotifyExtendedInformation
+} DIRECTORY_NOTIFY_INFORMATION_CLASS, *PDIRECTORY_NOTIFY_INFORMATION_CLASS;
+
 NTSTATUS WINAPI ObCloseHandle(IN HANDLE handle);
 
 #ifdef NONAMELESSUNION
@@ -1341,6 +1446,8 @@ static inline void IoSetCompletionRoutine(IRP *irp, PIO_COMPLETION_ROUTINE routi
 #define SYMBOLIC_LINK_QUERY             0x0001
 #define SYMBOLIC_LINK_ALL_ACCESS        (STANDARD_RIGHTS_REQUIRED | 0x1)
 
+NTSTATUS  WINAPI DbgQueryDebugFilterState(ULONG, ULONG);
+void      WINAPI ExAcquireFastMutexUnsafe(PFAST_MUTEX);
 PVOID     WINAPI ExAllocatePool(POOL_TYPE,SIZE_T);
 PVOID     WINAPI ExAllocatePoolWithQuota(POOL_TYPE,SIZE_T);
 PVOID     WINAPI ExAllocatePoolWithTag(POOL_TYPE,SIZE_T,ULONG);
@@ -1349,7 +1456,12 @@ void      WINAPI ExDeleteNPagedLookasideList(PNPAGED_LOOKASIDE_LIST);
 void      WINAPI ExFreePool(PVOID);
 void      WINAPI ExFreePoolWithTag(PVOID,ULONG);
 void      WINAPI ExInitializeNPagedLookasideList(PNPAGED_LOOKASIDE_LIST,PALLOCATE_FUNCTION,PFREE_FUNCTION,ULONG,SIZE_T,ULONG,USHORT);
+PSLIST_ENTRY WINAPI ExInterlockedPopEntrySList(PSLIST_HEADER,PKSPIN_LOCK);
+PSLIST_ENTRY WINAPI ExInterlockedPushEntrySList(PSLIST_HEADER,PSLIST_ENTRY,PKSPIN_LOCK);
+LIST_ENTRY * WINAPI ExInterlockedRemoveHeadList(LIST_ENTRY*,KSPIN_LOCK*);
+void      WINAPI ExReleaseFastMutexUnsafe(PFAST_MUTEX);
 
+void      WINAPI IoAcquireCancelSpinLock(KIRQL*);
 NTSTATUS  WINAPI IoAllocateDriverObjectExtension(PDRIVER_OBJECT,PVOID,ULONG,PVOID*);
 PVOID     WINAPI IoAllocateErrorLogEntry(PVOID,UCHAR);
 PIRP      WINAPI IoAllocateIrp(CCHAR,BOOLEAN);
@@ -1376,24 +1488,51 @@ PDEVICE_OBJECT WINAPI IoGetRelatedDeviceObject(PFILE_OBJECT);
 void      WINAPI IoInitializeIrp(IRP*,USHORT,CCHAR);
 VOID      WINAPI IoInitializeRemoveLockEx(PIO_REMOVE_LOCK,ULONG,ULONG,ULONG,ULONG);
 void      WINAPI IoInvalidateDeviceRelations(PDEVICE_OBJECT,DEVICE_RELATION_TYPE);
+NTSTATUS  WINAPI IoRegisterDeviceInterface(PDEVICE_OBJECT,const GUID*,PUNICODE_STRING,PUNICODE_STRING);
+void      WINAPI IoReleaseCancelSpinLock(KIRQL);
+NTSTATUS  WINAPI IoSetDeviceInterfaceState(UNICODE_STRING*,BOOLEAN);
 NTSTATUS  WINAPI IoWMIRegistrationControl(PDEVICE_OBJECT,ULONG);
 
+#ifdef __i386__
+void      WINAPI KeAcquireSpinLock(KSPIN_LOCK*,KIRQL*);
+#else
+#define KeAcquireSpinLock( lock, irql ) *(irql) = KeAcquireSpinLockRaiseToDpc( lock )
+KIRQL     WINAPI KeAcquireSpinLockRaiseToDpc(KSPIN_LOCK*);
+#endif
+void      WINAPI KeAcquireSpinLockAtDpcLevel(KSPIN_LOCK*);
+BOOLEAN   WINAPI KeCancelTimer(KTIMER*);
+void      WINAPI KeClearEvent(PRKEVENT);
+NTSTATUS  WINAPI KeDelayExecutionThread(KPROCESSOR_MODE,BOOLEAN,LARGE_INTEGER*);
 PKTHREAD  WINAPI KeGetCurrentThread(void);
+void      WINAPI KeInitializeEvent(PRKEVENT,EVENT_TYPE,BOOLEAN);
+void      WINAPI KeInitializeMutex(PRKMUTEX,ULONG);
+void      WINAPI KeInitializeSemaphore(PRKSEMAPHORE,LONG,LONG);
+void      WINAPI KeInitializeSpinLock(KSPIN_LOCK*);
+void      WINAPI KeInitializeTimerEx(PKTIMER,TIMER_TYPE);
+void      WINAPI KeInitializeTimer(KTIMER*);
 void      WINAPI KeQuerySystemTime(LARGE_INTEGER*);
 void      WINAPI KeQueryTickCount(LARGE_INTEGER*);
 ULONG     WINAPI KeQueryTimeIncrement(void);
+LONG      WINAPI KeReleaseMutex(PRKMUTEX,BOOLEAN);
 LONG      WINAPI KeReleaseSemaphore(PRKSEMAPHORE,KPRIORITY,LONG,BOOLEAN);
+void      WINAPI KeReleaseSpinLock(KSPIN_LOCK*,KIRQL);
+void      WINAPI KeReleaseSpinLockFromDpcLevel(KSPIN_LOCK*);
 LONG      WINAPI KeResetEvent(PRKEVENT);
 LONG      WINAPI KeSetEvent(PRKEVENT,KPRIORITY,BOOLEAN);
 KPRIORITY WINAPI KeSetPriorityThread(PKTHREAD,KPRIORITY);
 void      WINAPI KeSetSystemAffinityThread(KAFFINITY);
+BOOLEAN   WINAPI KeSetTimerEx(KTIMER*,LARGE_INTEGER,LONG,KDPC*);
+NTSTATUS  WINAPI KeWaitForMultipleObjects(ULONG,void*[],WAIT_TYPE,KWAIT_REASON,KPROCESSOR_MODE,BOOLEAN,LARGE_INTEGER*,KWAIT_BLOCK*);
+NTSTATUS  WINAPI KeWaitForSingleObject(void*,KWAIT_REASON,KPROCESSOR_MODE,BOOLEAN,LARGE_INTEGER*);
 
 PVOID     WINAPI MmAllocateContiguousMemory(SIZE_T,PHYSICAL_ADDRESS);
 PVOID     WINAPI MmAllocateNonCachedMemory(SIZE_T);
 PMDL      WINAPI MmAllocatePagesForMdl(PHYSICAL_ADDRESS,PHYSICAL_ADDRESS,PHYSICAL_ADDRESS,SIZE_T);
 void      WINAPI MmFreeNonCachedMemory(PVOID,SIZE_T);
+void *    WINAPI MmGetSystemRoutineAddress(UNICODE_STRING*);
 PVOID     WINAPI MmMapLockedPagesSpecifyCache(PMDL,KPROCESSOR_MODE,MEMORY_CACHING_TYPE,PVOID,ULONG,ULONG);
 MM_SYSTEMSIZE WINAPI MmQuerySystemSize(void);
+void      WINAPI MmProbeAndLockPages(PMDLX, KPROCESSOR_MODE, LOCK_OPERATION);
 
 static inline void *MmGetSystemAddressForMdlSafe(MDL *mdl, ULONG priority)
 {
@@ -1404,9 +1543,12 @@ static inline void *MmGetSystemAddressForMdlSafe(MDL *mdl, ULONG priority)
 }
 
 void      WINAPI ObDereferenceObject(void*);
+USHORT    WINAPI ObGetFilterVersion(void);
+NTSTATUS  WINAPI ObRegisterCallbacks(POB_CALLBACK_REGISTRATION*, void**);
 NTSTATUS  WINAPI ObReferenceObjectByHandle(HANDLE,ACCESS_MASK,POBJECT_TYPE,KPROCESSOR_MODE,PVOID*,POBJECT_HANDLE_INFORMATION);
 NTSTATUS  WINAPI ObReferenceObjectByName(UNICODE_STRING*,ULONG,ACCESS_STATE*,ACCESS_MASK,POBJECT_TYPE,KPROCESSOR_MODE,void*,void**);
 NTSTATUS  WINAPI ObReferenceObjectByPointer(void*,ACCESS_MASK,POBJECT_TYPE,KPROCESSOR_MODE);
+void      WINAPI ObUnRegisterCallbacks(void*);
 
 POWER_STATE WINAPI PoSetPowerState(PDEVICE_OBJECT,POWER_STATE_TYPE,POWER_STATE);
 NTSTATUS  WINAPI PsCreateSystemThread(PHANDLE,ULONG,POBJECT_ATTRIBUTES,HANDLE,PCLIENT_ID,PKSTART_ROUTINE,PVOID);
@@ -1522,5 +1664,13 @@ NTSTATUS  WINAPI ZwWaitForSingleObject(HANDLE,BOOLEAN,const LARGE_INTEGER*);
 NTSTATUS  WINAPI ZwWaitForMultipleObjects(ULONG,const HANDLE*,BOOLEAN,BOOLEAN,const LARGE_INTEGER*);
 NTSTATUS  WINAPI ZwWriteFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,const void*,ULONG,PLARGE_INTEGER,PULONG);
 NTSTATUS  WINAPI ZwYieldExecution(void);
+
+static inline void ExInitializeFastMutex( FAST_MUTEX *mutex )
+{
+    mutex->Count = FM_LOCK_BIT;
+    mutex->Owner = NULL;
+    mutex->Contention = 0;
+    KeInitializeEvent( &mutex->Event, SynchronizationEvent, FALSE );
+}
 
 #endif

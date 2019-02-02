@@ -140,15 +140,6 @@ typedef struct _FILE_VALID_DATA_LENGTH_INFORMATION
   LARGE_INTEGER ValidDataLength;
 } FILE_VALID_DATA_LENGTH_INFORMATION, *PFILE_VALID_DATA_LENGTH_INFORMATION;
 
-typedef struct _KWAIT_BLOCK {
-    LIST_ENTRY WaitListEntry;
-    struct _KTHREAD *RESTRICTED_POINTER Thread;
-    PVOID Object;
-    struct _KWAIT_BLOCK *RESTRICTED_POINTER NextWaitBlock;
-    USHORT WaitKey;
-    USHORT WaitType;
-} KWAIT_BLOCK, *PKWAIT_BLOCK, *RESTRICTED_POINTER PRKWAIT_BLOCK;
-
 typedef struct _RTL_BALANCED_LINKS {
     struct _RTL_BALANCED_LINKS *Parent;
     struct _RTL_BALANCED_LINKS *LeftChild;
@@ -186,6 +177,24 @@ typedef struct _RTL_AVL_TABLE {
     void *TableContext;
 } RTL_AVL_TABLE, *PRTL_AVL_TABLE;
 
+typedef struct _PS_CREATE_NOTIFY_INFO {
+    SIZE_T Size;
+    union {
+        ULONG Flags;
+        struct {
+            ULONG FileOpenNameAvailable :1;
+            ULONG IsSubsystemProcess :1;
+            ULONG Reserved :30;
+        } DUMMYSTRUCTNAME;
+    } DUMMYUNIONNAME;
+    HANDLE               ParentProcessId;
+    CLIENT_ID            CreatingThreadId;
+    struct _FILE_OBJECT *FileObject;
+    PCUNICODE_STRING     ImageFileName;
+    PCUNICODE_STRING     CommandLine;
+    NTSTATUS             CreationStatus;
+} PS_CREATE_NOTIFY_INFO, *PPS_CREATE_NOTIFY_INFO;
+
 typedef VOID (WINAPI *PDRIVER_NOTIFICATION_CALLBACK_ROUTINE)(PVOID,PVOID);
 typedef VOID (WINAPI *PDRIVER_REINITIALIZE)(PDRIVER_OBJECT,PVOID,ULONG);
 typedef VOID (WINAPI *PLOAD_IMAGE_NOTIFY_ROUTINE)(PUNICODE_STRING,HANDLE,PIMAGE_INFO);
@@ -196,6 +205,7 @@ NTSTATUS  WINAPI IoQueryDeviceDescription(PINTERFACE_TYPE,PULONG,PCONFIGURATION_
                                   PCONFIGURATION_TYPE,PULONG,PIO_QUERY_DEVICE_ROUTINE,PVOID);
 void      WINAPI IoRegisterDriverReinitialization(PDRIVER_OBJECT,PDRIVER_REINITIALIZE,PVOID);
 NTSTATUS  WINAPI IoRegisterShutdownNotification(PDEVICE_OBJECT);
+void      WINAPI KeSetTargetProcessorDpc(PRKDPC,CCHAR);
 BOOLEAN   WINAPI MmIsAddressValid(void *);
 NTSTATUS  WINAPI PsSetLoadImageNotifyRoutine(PLOAD_IMAGE_NOTIFY_ROUTINE);
 void      WINAPI RtlInitializeGenericTableAvl(PRTL_AVL_TABLE,PRTL_AVL_COMPARE_ROUTINE,PRTL_AVL_ALLOCATE_ROUTINE, PRTL_AVL_FREE_ROUTINE,void *);
