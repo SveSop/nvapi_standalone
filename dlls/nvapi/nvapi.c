@@ -880,6 +880,31 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
     return NVAPI_OK;
 }
 
+/* Get device IRQ from NVCtrl */
+static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pIRQ)
+{
+    int gpuirq;
+    TRACE("(%p, %p)\n", hPhysicalGPU, pIRQ);
+
+    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGPU);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+                return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool irqgpu=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_IRQ, &gpuirq);
+    if (!irqgpu) {
+            FIXME("invalid display: %d\n", gpuirq);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pIRQ = gpuirq;
+    XCloseDisplay(display);
+    return NVAPI_OK;
+}
+
 /* Get device and vendor id from NVCtrl to create NVAPI PCI ID's */
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
 {
@@ -1443,6 +1468,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x774aa982, NvAPI_GPU_GetMemoryInfo},
 	{0xc33baeb1, NvAPI_GPU_GetGPUType},
 	{0x189a1fdf, NvAPI_GPU_GetUsages},
+	{0xe4715417, NvAPI_GPU_GetIRQ},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);

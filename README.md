@@ -51,6 +51,7 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
   * Get shader/cuda cores from NVCtrl  
   * Read GPU Voltage  
   * Calculate GPU fan speed
+  * Get IRQ  
 
 ## Working on  
 
