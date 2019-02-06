@@ -314,11 +314,11 @@ static int get_nv_driver_version(void)
                                                 0, // display_mask
                                                 NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,
                                                 &nvver);
+    XCloseDisplay(display);
     if (!drvver) {
         FIXME("invalid driver: %s\n", nvver);
         return NVAPI_INVALID_POINTER;
     }
-    XCloseDisplay(display);
     return (drvver);
 }
 
@@ -354,11 +354,11 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
                                                 0, // display_mask
                                                 NV_CTRL_STRING_PRODUCT_NAME,
                                                 &adapter);
+    XCloseDisplay(display);
     if (!check) {
         return NVAPI_INVALID_POINTER;
     }
     strcpy(pVersion->szAdapterString, adapter);		/* Report adapter name from NvAPI */
-    XCloseDisplay(display);
     return NVAPI_OK;
 }
 
