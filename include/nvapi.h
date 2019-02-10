@@ -45,6 +45,13 @@ typedef signed int NvS32;
 #define NVAPI_STEREO_NOT_INITIALIZED -140
 #define NVAPI_UNREGISTERED_RESOURCE -170
 #define NVAPI_FIRMWARE_OUT_OF_DATE -199
+#define NVAPI_MAX_COOLERS_PER_GPU_VER1  3
+#define NVAPI_MAX_COOLERS_PER_GPU_VER2  20
+#define NVAPI_MAX_COOLERS_PER_GPU_VER3 NVAPI_MAX_COOLERS_PER_GPU_VER2
+#define NVAPI_MAX_COOLERS_PER_GPU NVAPI_MAX_COOLERS_PER_GPU_VER3
+#define NVAPI_MIN_COOLER_LEVEL 0
+#define NVAPI_MAX_COOLER_LEVEL 100
+#define NVAPI_MAX_COOLER_LEVELS 24
 
 #define NVAPI_SHORT_STRING_MAX 64
 #define NVAPI_PHYSICAL_GPUS 32
@@ -117,6 +124,26 @@ typedef struct
 } NV_USAGES_INFO_V1;
 
 #define NV_USAGES_INFO NV_USAGES_INFO_V1
+
+typedef struct
+{
+    NvU32   version;
+    NvU32   count;
+    struct {
+       NvU32 type;					/* 0 = "none", 1 = "Fan", 2 = "Water", 3 = "Liquid_NO2" */
+       NvU32 controller;				/* 0 = "none", 1 = "ADI", 2 = "Internal" */
+       NvU32 defaultMinLevel;
+       NvU32 defaultMaxLevel;
+       NvU32 currentMinLevel;
+       NvU32 currentMaxLevel;
+       NvU32 currentLevel;				/* Current % value */
+       NvU32 defaultPolicy;				/* 0 = "None", 1 = "Manual", 2 = "Perf", 4 = "Discrete", 8 = "Continous HW", 16 = "Continous SW", 32 = "Default" */
+       NvU32 currentPolicy;				/* Same as above */
+       NvU32 target;					/* 0 = "none", 1 = "GPU", 2 = "Memory", 4 = "Power", 7 = "All" */
+       NvU32 controlType;				/* toggle or variable ? */
+       NvU32 active;					/* 0 = "inactive", 1 = "Active" */
+    } cooler[NVAPI_MAX_COOLERS_PER_GPU_VER3];
+} NV_GPU_COOLER_SETTINGS;
 
 typedef struct
 {

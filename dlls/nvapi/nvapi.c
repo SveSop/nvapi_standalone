@@ -869,7 +869,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalG
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    *pSystemType = 2;
+    *pSystemType = 2;					/* System type "2" = Desktop, "1" = Laptop */
     return NVAPI_OK;
 }
 
@@ -970,7 +970,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
     return NVAPI_OK;
 }
 
-/* Fake Fan Speed */
+/* Get fan speed */
 static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pValue)
 {
     int fanspeed;
@@ -1224,7 +1224,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
             return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
         }
     XCloseDisplay(display);
-    pMemoryInfo->curAvailableDedicatedVideoMemory = (dedram - usedvram) * 1024;		/* Dedicated memory usage in kb */
+    pMemoryInfo->curAvailableDedicatedVideoMemory = (dedram - usedvram) * 1024;		/* Calculate available vram in kb */
 
     if (!pMemoryInfo)
         return NVAPI_INVALID_ARGUMENT;
@@ -1240,7 +1240,60 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu,
     if (!hPhysicalGpu)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    *pRamType = 8;
+    *pRamType = 8;				/* No similar function in NVCtrl, so "type = 8" is GDDR5 */
+    return NVAPI_OK;
+}
+
+/* Implement CoolerSettings */
+static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 coolerIndex, NV_GPU_COOLER_SETTINGS *pCoolerInfo)
+{
+    int fanlevel, controltype;
+    TRACE("(%p, %d, %p)\n", hPhysicalGpu, coolerIndex, pCoolerInfo);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    if (!(display = XOpenDisplay(NULL))) {
+        TRACE("(%p)\n", XDisplayName(NULL));
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool fanstatus=XNVCTRLQueryTargetAttribute(display,
+                          NV_CTRL_TARGET_TYPE_COOLER,
+                          0, // target_id
+                          0, // display_mask
+                          NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL,
+                          &fanlevel);				/* Reads cooler load in % */
+    Bool type=XNVCTRLQueryTargetAttribute(display,
+                          NV_CTRL_TARGET_TYPE_COOLER,
+                          0, // target_id
+                          0, // display_mask
+                          NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,
+                          &controltype);
+    XCloseDisplay(display);
+    if (!fanstatus) {
+        FIXME("invalid result: %d\n", fanlevel);
+        return NVAPI_NOT_SUPPORTED;
+    }
+    if (!type) {
+        FIXME("invalid result: %d\n", controltype);
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    pCoolerInfo->count = 1;
+    pCoolerInfo->cooler[0].type = 1;				/* "Fan" type cooler */
+    pCoolerInfo->cooler[0].controller = 2;			/* "Internal" controller */
+    pCoolerInfo->cooler[0].defaultMinLevel = 0;
+    pCoolerInfo->cooler[0].defaultMaxLevel = 100;
+    pCoolerInfo->cooler[0].currentMinLevel = 0;
+    pCoolerInfo->cooler[0].currentMaxLevel = 100;
+    pCoolerInfo->cooler[0].currentLevel = fanlevel;		/* Fan level in % from NVCtrl */
+    pCoolerInfo->cooler[0].defaultPolicy = 0;
+    pCoolerInfo->cooler[0].currentPolicy = 0;
+    pCoolerInfo->cooler[0].target = 1;				/* GPU */
+    pCoolerInfo->cooler[0].controlType = controltype;		/* Cooler Control type from NVCtrl */
+    pCoolerInfo->cooler[0].active = 1;
     return NVAPI_OK;
 }
 
@@ -1530,6 +1583,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x189a1fdf, NvAPI_GPU_GetUsages},
 	{0xe4715417, NvAPI_GPU_GetIRQ},
 	{0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
+	{0xda141340, NvAPI_GPU_GetCoolerSettings},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
