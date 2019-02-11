@@ -52,6 +52,9 @@ typedef signed int NvS32;
 #define NVAPI_MIN_COOLER_LEVEL 0
 #define NVAPI_MAX_COOLER_LEVEL 100
 #define NVAPI_MAX_COOLER_LEVELS 24
+#define NVAPI_MAX_GPU_PERF_CLOCKS 32
+#define NVAPI_MAX_GPU_PERF_VOLTAGES 16
+#define NVAPI_MAX_GPU_PERF_PSTATES 16
 
 #define NVAPI_SHORT_STRING_MAX 64
 #define NVAPI_PHYSICAL_GPUS 32
@@ -110,7 +113,8 @@ typedef struct
     }domain[NVAPI_MAX_GPU_PUBLIC_CLOCKS];
 } NV_GPU_CLOCK_FREQUENCIES_V2;
 
-#define NV_GPU_CLOCK_FREQUENCIES NV_GPU_CLOCK_FREQUENCIES_V2
+#define NV_GPU_CLOCK_FREQUENCIES_V2_VER MAKE_NVAPI_VERSION(NV_GPU_CLOCK_FREQUENCIES_V2, 2)
+typedef NV_GPU_CLOCK_FREQUENCIES_V2 NV_GPU_CLOCK_FREQUENCIES;
 
 typedef struct
 {
@@ -123,7 +127,8 @@ typedef struct
     } usages[8];
 } NV_USAGES_INFO_V1;
 
-#define NV_USAGES_INFO NV_USAGES_INFO_V1
+#define NV_USAGES_INFO_V1_VER MAKE_NVAPI_VERSION(NV_USAGES_INFO_V1, 1)
+typedef NV_USAGES_INFO_V1 NV_USAGES_INFO;
 
 typedef struct
 {
@@ -144,6 +149,8 @@ typedef struct
        NvU32 active;					/* 0 = "inactive", 1 = "Active" */
     } cooler[NVAPI_MAX_COOLERS_PER_GPU_VER3];
 } NV_GPU_COOLER_SETTINGS;
+
+#define NV_GPU_COOLER_SETTINGS_VER MAKE_NVAPI_VERSION(NV_GPU_COOLER_SETTINGS, 1)
 
 typedef struct
 {
@@ -172,6 +179,32 @@ typedef NV_GPU_PERF_PSTATES20_INFO_V2 NV_GPU_PERF_PSTATES20_INFO;
 typedef struct
 {
     NvU32 version;
+    NvU32 flags;
+    NvU32 numPstates;
+    NvU32 numClocks;
+    NvU32 numVoltages;
+    struct {
+       NvU32 pstateId;
+       NvU32 flags;
+       struct {
+          NvU32 domainId;
+          NvU32 flags;
+          NvU32 freq;
+       } clocks[NVAPI_MAX_GPU_PERF_CLOCKS];
+       struct {
+          NvU32 domainId;
+          NvU32 flags;
+          NvU32 mvolt;
+       } voltages[NVAPI_MAX_GPU_PERF_VOLTAGES];
+    } pstates[NVAPI_MAX_GPU_PERF_PSTATES];
+} NV_GPU_PERF_PSTATES_INFO_V2;
+
+#define NV_GPU_PERF_PSTATES_INFO_V2_VER MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES_INFO_V2, 2)
+typedef NV_GPU_PERF_PSTATES_INFO_V2 NV_GPU_PERF_PSTATES_INFO;
+
+typedef struct
+{
+    NvU32 version;
     NvU32 count;
     struct {
        NvU32 controller;
@@ -181,6 +214,9 @@ typedef struct
        NvU32 target;
     } sensor[NVAPI_MAX_THERMAL_SENSORS_PER_GPU];
 } NV_GPU_THERMAL_SETTINGS_V2;
+
+#define NV_GPU_THERMAL_SETTINGS_VER_2 MAKE_NVAPI_VERSION(NV_GPU_THERMAL_SETTINGS_V2, 2)
+typedef NV_GPU_THERMAL_SETTINGS_V2 NV_GPU_THERMAL_SETTINGS;
 
 typedef struct
 {
@@ -192,8 +228,7 @@ typedef struct
     } utilization[NVAPI_MAX_GPU_UTILIZATIONS];
 } NV_GPU_DYNAMIC_PSTATES_INFO_EX;
 
-#define NV_GPU_THERMAL_SETTINGS_VER_2 MAKE_NVAPI_VERSION(NV_GPU_THERMAL_SETTINGS_V2, 2)
-typedef NV_GPU_THERMAL_SETTINGS_V2 NV_GPU_THERMAL_SETTINGS;
+#define NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER MAKE_NVAPI_VERSION(NV_GPU_DYNAMIC_PSTATES_INFO_EX, 2)
 
 typedef struct
 {
@@ -205,6 +240,7 @@ typedef struct
     NvU32 buf1:30;
 } NV_VOLT_STATUS_V1;
 
+#define NV_VOLT_STATUS_V1_VER MAKE_NVAPI_VERSION(NV_VOLT_STATUS_V1, 1)
 typedef NV_VOLT_STATUS_V1 NV_VOLT_STATUS;
 
 typedef struct
@@ -219,7 +255,8 @@ typedef struct
     NvU32 dedicatedVideoMemoryEvictionCount;
 } NV_DISPLAY_DRIVER_MEMORY_INFO_V3;
 
-#define NV_DISPLAY_DRIVER_MEMORY_INFO NV_DISPLAY_DRIVER_MEMORY_INFO_V3
+#define NV_DISPLAY_DRIVER_MEMORY_INFO_V3_VER MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_MEMORY_INFO_V3, 3)
+typedef NV_DISPLAY_DRIVER_MEMORY_INFO_V3 NV_DISPLAY_DRIVER_MEMORY_INFO;
 
 typedef struct
 {

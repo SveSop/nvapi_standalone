@@ -678,6 +678,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     get_nv_clocks();
     int gpu=(clocks >> 16);
     short memclk=clocks;
+    pClkFreqs->version = NV_GPU_CLOCK_FREQUENCIES_V2_VER;
     pClkFreqs->ClockType = 0;					/* Current clocks */
     pClkFreqs->reserved = 0;					/* These bits are reserved for future use. Must be set to 0. */
     pClkFreqs->domain[0].bIsPresent = 1;
@@ -713,18 +714,50 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     get_nv_clocks();
     int gpu=(clocks >> 16);
     short memclk=clocks;
+    pPstatesInfo->version = NV_GPU_PERF_PSTATES20_INFO_VER2;
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = 0;			/* Hopefully "Performance mode" */
+    pPstatesInfo->pstates[0].pstateId = 0;			/* Possibly Pstate-0 "Performance" */
     pPstatesInfo->pstates[0].reserved = 0;			/* These bits are reserved for future use (must be always 0) ref. NV Docs */
-    pPstatesInfo->pstates[0].clocks[0] = 1;			/* Enable clock? */
-    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000);		/* Current GPU clock? */
+    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000);		/* Seems to be "current" gpu clock */
     pPstatesInfo->pstates[0].baseVoltages[0] = 1;
     pPstatesInfo->pstates[1].pstateId = 0;
-    pPstatesInfo->pstates[1].reserved = 0;			/* These bits are reserved for future use (must be always 0) ref. NV Docs */
-    pPstatesInfo->pstates[1].clocks[0] = 1;			/* Enable clock */
-    pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000);	/* Current VRAM clock */
+    pPstatesInfo->pstates[1].reserved = 0;
+    pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000);	/* Seems to be "current" memory clock */
+    pPstatesInfo->ov.numVoltages = 1;
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES_INFO *pPstatesInfo)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    get_nv_clocks();
+    int gpu=(clocks >> 16);
+    short memclk=clocks;
+    pPstatesInfo->version = NV_GPU_PERF_PSTATES_INFO_V2_VER;
+    pPstatesInfo->flags = 0;					/* Reserved */
+    pPstatesInfo->numPstates = 1;
+    pPstatesInfo->numClocks = 1;
+    pPstatesInfo->numVoltages = 1;
+    pPstatesInfo->pstates[0].pstateId = 0;			/* Possibly Pstate-0 "Performance" */
+    pPstatesInfo->pstates[0].flags = 0;
+    pPstatesInfo->pstates[0].clocks[0].domainId = 0;
+    pPstatesInfo->pstates[0].clocks[0].flags = 0;
+    pPstatesInfo->pstates[0].clocks[7].freq = (gpu * 1000);	/* Using same as GetPstates20 possibly for GPU clock */
+    pPstatesInfo->pstates[0].voltages[0].domainId = 0;
+    pPstatesInfo->pstates[0].voltages[0].flags = 0;		/* Reserved */
+    pPstatesInfo->pstates[1].clocks[0].domainId = 0;
+    pPstatesInfo->pstates[1].clocks[0].flags = 0;
+    pPstatesInfo->pstates[1].clocks[3].freq = (memclk * 1000);	/* Using same as GetPstates20 possibly for mem clock */
+    pPstatesInfo->pstates[1].voltages[0].domainId = 0;
+    pPstatesInfo->pstates[1].voltages[0].flags = 0;             /* Reserved */
     return NVAPI_OK;
 }
 
@@ -762,6 +795,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
     get_gpu_usage();								/* NVCtrl output a string with usages */
     char *gpuuse = strtok_r(gfxload, ",", &gfxload);				/* Conversion */
     memmove(gpuuse, gpuuse+9, strlen(gpuuse));					/* Magic      */
+    pUsagesInfo->version = NV_USAGES_INFO_V1_VER;
     pUsagesInfo->flags = 1;
     pUsagesInfo->usages[0].bIsPresent = 1;
     pUsagesInfo->usages[0].percentage[0] = strtoul(gpuuse, &gpuuse, 10);	/* This is GPU usage % */
@@ -800,13 +834,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hP
                 TRACE("(%p)\n", XDisplayName(NULL));
 		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
     }
-    *pLocation = 0;						/* Unsure what this value indicates "onboard"? */
     Bool buswidth=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_MEMORY_BUS_WIDTH, &bwidth);
     XCloseDisplay(display);
     if (!buswidth) {
             FIXME("invalid display: %d\n", bwidth);
             return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
+    *pLocation = 1;						/* 1 = "GPU Dedicated" */
     *pWidth = bwidth;
     return NVAPI_OK;
 }
@@ -824,6 +858,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
     get_gpu_usage();							/* Get string of usages from NVCtrl */
     char *result = strtok_r(gfxload, ",", &gfxload);
     memmove(result, result+9, strlen(result));
+    pDynamicPstatesInfoEx->version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
     pDynamicPstatesInfoEx->flags = 1;
     pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;
     pDynamicPstatesInfoEx->utilization[0].percentage = strtoul(result, &result, 10);
@@ -851,6 +886,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle 
             FIXME("invalid display: %d\n", corevolt);
             return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
+    pVoltStatus->version = NV_VOLT_STATUS_V1_VER;
     pVoltStatus->flags = 0;
     pVoltStatus->count = 1;
     pVoltStatus->value_uV = corevolt;
@@ -1180,7 +1216,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGp
     return NVAPI_OK;
 }
 
-/* Get ram from NVCtrl */
+/* Get total amount of vram from NVCtrl. */
 static int get_nv_vram(void)
 {
     if (!(display = XOpenDisplay(NULL))) {
@@ -1215,20 +1251,20 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
             FIXME("invalid display: %d\n", dedram);
             return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
         }
-    pMemoryInfo->dedicatedVideoMemory = gpuvram;				/* Report dedicated as total vram */
-    pMemoryInfo->availableDedicatedVideoMemory = dedram * 1024;			/* Get available dedicated vram in kb */
-    pMemoryInfo->sharedSystemMemory = dedram * 2048;				/* 2 x dedicated vram in kb */
     Bool memused=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_USED_DEDICATED_GPU_MEMORY, &usedvram);
     if (!memused) {
             FIXME("invalid display: %d\n", usedvram);
             return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
         }
     XCloseDisplay(display);
-    pMemoryInfo->curAvailableDedicatedVideoMemory = (dedram - usedvram) * 1024;		/* Calculate available vram in kb */
+    pMemoryInfo->version = NV_DISPLAY_DRIVER_MEMORY_INFO_V3_VER;
+    pMemoryInfo->dedicatedVideoMemory = gpuvram;				/* Report total vram as dedicated vram */
+    pMemoryInfo->availableDedicatedVideoMemory = dedram * 1024;			/* Get available dedicated vram in kb */
+    pMemoryInfo->sharedSystemMemory = (gpuvram - dedram) * 1024;		/* Caclulate possible virtual vram in kb */
+    pMemoryInfo->curAvailableDedicatedVideoMemory = (dedram - usedvram) * 1024;	/* Calculate available vram in kb */
 
     if (!pMemoryInfo)
         return NVAPI_INVALID_ARGUMENT;
-
     return NVAPI_OK;
 }
 
@@ -1243,6 +1279,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu,
     *pRamType = 8;				/* No similar function in NVCtrl, so "type = 8" is GDDR5 */
     return NVAPI_OK;
 }
+
+static NvAPI_Status CDECL NvAPI_GPU_GetRamMaker(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pRamMaker)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pRamMaker);
+
+    if (!hPhysicalGpu)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    *pRamMaker = 0;                              /* Undocumented function. NVCtrl cannot get brand/maker. 0 = "unknown" */
+    return NVAPI_OK;
+}
+
+
 
 /* Implement CoolerSettings */
 static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 coolerIndex, NV_GPU_COOLER_SETTINGS *pCoolerInfo)
@@ -1281,6 +1330,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysi
         return NVAPI_NOT_SUPPORTED;
     }
 
+    pCoolerInfo->version = NV_GPU_COOLER_SETTINGS_VER;
     pCoolerInfo->count = 1;
     pCoolerInfo->cooler[0].type = 1;				/* "Fan" type cooler */
     pCoolerInfo->cooler[0].controller = 2;			/* "Internal" controller */
@@ -1307,6 +1357,24 @@ static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResou
 {
     FIXME("(%p): stub\n", pResource);
     return NVAPI_ERROR;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetStatus(void)
+{
+    TRACE("()\n");
+    return NVAPI_NOT_SUPPORTED;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetStatus(void)
+{
+    TRACE("()\n");
+    return NVAPI_NOT_SUPPORTED;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetInfo(void)
+{
+    TRACE("()\n");
+    return NVAPI_NOT_SUPPORTED;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIEInfo(void)
@@ -1354,6 +1422,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSize)
 {
+    int totram;
     TRACE("(%p, %p)\n", hPhysicalGpu, pSize);
 
     if (!hPhysicalGpu)
@@ -1365,11 +1434,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHand
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool memtot=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY, &totram);
+    XCloseDisplay(display);
+    if (!memtot) {
+            FIXME("invalid display: %d\n", totram);
+            return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    *pSize = totram * 1024;					/* Total dedicated ram in Kb - Slightly less than vram */
     if (!pSize)
         return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
-
-    get_nv_vram();
-    *pSize = gpuvram;
     return NVAPI_OK;
 }
 
@@ -1386,8 +1463,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    get_nv_vram();
-    *pSize = gpuvram * 2;		/* Somewhat safe to assume "virtual" framebuffer is 2 x vram */
+    *pSize = (get_nv_vram(), gpuvram);		/* Get total amount of vram incl any system ram*/
 
     if (!pSize)
         return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
@@ -1584,6 +1660,11 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0xe4715417, NvAPI_GPU_GetIRQ},
 	{0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
 	{0xda141340, NvAPI_GPU_GetCoolerSettings},
+	{0xedcf624e, NvAPI_GPU_ClientPowerTopologyGetStatus},
+	{0x70916171, NvAPI_GPU_ClientPowerPoliciesGetStatus},
+	{0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
+	{0x42aea16a, NvAPI_GPU_GetRamMaker},
+	{0xba94c56e, NvAPI_GPU_GetPstatesInfo},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
