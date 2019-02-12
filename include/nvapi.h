@@ -57,6 +57,7 @@ typedef signed int NvS32;
 #define NVAPI_MAX_GPU_PERF_PSTATES 16
 
 #define NVAPI_SHORT_STRING_MAX 64
+#define NVAPI_LONG_STRING_MAX 256
 #define NVAPI_PHYSICAL_GPUS 32
 #define NVAPI_MAX_PHYSICAL_GPUS 64
 #define NVAPI_MAX_LOGICAL_GPUS 64
@@ -69,8 +70,10 @@ typedef signed int NvS32;
 #define NVAPI_MAX_GPU_UTILIZATIONS 8
 #define NVAPI_ADVANCED_DISPLAY_HEADS 4
 #define NVAPI_MAX_DISPLAYS (NVAPI_PHYSICAL_GPUS * NVAPI_ADVANCED_DISPLAY_HEADS)
+#define NVAPI_MAX_PROCESSES 128
 
 typedef char NvAPI_ShortString[NVAPI_SHORT_STRING_MAX];
+typedef char NvAPI_LongString[NVAPI_LONG_STRING_MAX];
 
 #define MAKE_NVAPI_VERSION(type,version) (NvU32)(sizeof(type) | ((version)<<16))
 
@@ -151,6 +154,15 @@ typedef struct
 } NV_GPU_COOLER_SETTINGS;
 
 #define NV_GPU_COOLER_SETTINGS_VER MAKE_NVAPI_VERSION(NV_GPU_COOLER_SETTINGS, 1)
+
+typedef struct
+{
+    NvU32 version;
+    NvU32 processPID;
+    NvAPI_LongString processName;
+} NV_ACTIVE_APP;
+
+#define NV_ACTIVE_APPS_INFO_VER MAKE_NVAPI_VERSION(NV_ACTIVE_APP, 2)
 
 typedef struct
 {

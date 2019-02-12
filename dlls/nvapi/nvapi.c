@@ -332,15 +332,20 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
         FIXME("invalid display handle: %p\n", hNvDisplay);
         return NVAPI_INVALID_HANDLE;
     }
-
-    if (!pVersion)
-        return NVAPI_INVALID_ARGUMENT;
     /* Return driver version */
+    pVersion->version = NV_DISPLAY_DRIVER_VERSION_VER;
     get_nv_driver_version();
-    strcpy(pVersion->szBuildBranchString, nvver);	/* Full driver version string */
-    /* Create "short" driver version */
+    char *branch = nvver;
+    pVersion->drvVersion = strtoul(nvver, &nvver, 10);		/* Full driver version string */
+    NvAPI_ShortString build_str = "R0_00\0"; 			/* Empty "branch" string */
+    /* Trunkate driver version */
     strcpy(&nvver[3], &nvver[3 + 1]);
-    pVersion->drvVersion = strtoul(nvver, &nvver, 10);	/* Short driver version string */
+    /* Create "branch" version */
+    strcpy(&branch[2], &branch[7 + 1]); 			/* Get "major" version			*/
+    lstrcpynA(pVersion->szBuildBranchString, build_str, 1);	/*					*/
+    pVersion->szBuildBranchString[1] = '\0';
+    strcat(pVersion->szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
+    strcat(pVersion->szBuildBranchString, build_str + 1); 	/*  Final branch version from NvAPI	*/
     pVersion->bldChangeListNum = 0;
 
     /* Get Adaptername from NVCtrl */
@@ -358,7 +363,9 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     if (!check) {
         return NVAPI_INVALID_POINTER;
     }
-    strcpy(pVersion->szAdapterString, adapter);		/* Report adapter name from NvAPI */
+    strcpy(pVersion->szAdapterString, adapter);		/* Report adapter name from NVCtrl */
+    if (!pVersion)
+        return NVAPI_INVALID_ARGUMENT;
     return NVAPI_OK;
 }
 
@@ -579,7 +586,7 @@ static NvAPI_Status CDECL NvAPI_EnumNvidiaDisplayHandle(NvU32 thisEnum, NvDispla
 }
 
 /* Set driver short version and branch string */
-static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVersion, NvAPI_ShortString szBuildBranchString)
+static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32 *pDriverVersion, NvAPI_ShortString szBuildBranchString)
 {
     TRACE("(%p, %p)\n", pDriverVersion, szBuildBranchString);
 
@@ -588,7 +595,7 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVers
 
     /* Return driver version */
     get_nv_driver_version();
-    NvAPI_ShortString build_str = "R0_00"; 		/* Empty "branch" string */
+    NvAPI_ShortString build_str = "R0_00\0"; 		/* Empty "branch" string */
     char *branch = nvver;
     /* Create "short" driver version */
     strcpy(&nvver[3], &nvver[3 + 1]);
@@ -598,7 +605,7 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVers
     lstrcpynA(szBuildBranchString, build_str, 1);	/*					*/
     szBuildBranchString[1] = '\0';			/*  Copy strings together		*/
     strcat(szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
-    memcpy(szBuildBranchString, build_str, + 1);	/*  Final branch version from NvAPI	*/
+    strcat(szBuildBranchString, build_str + 1);		/*  Final branch version from NvAPI	*/
     return NVAPI_OK;
     /* Assumption: 415.22.05 is from the R410 driver "branch" (Not verified) */
 }
@@ -646,6 +653,21 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
         return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
 
     *pLogicalGPU = FAKE_LOGICAL_GPU;
+    return NVAPI_OK;
+}
+
+/* Simulate getting active 3D apps */
+static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvPhysicalGpuHandle hPhysicalGPU, NV_ACTIVE_APP *pActiveApps[NVAPI_MAX_PROCESSES], NvU32 *pTotal)
+{
+    TRACE("(%p, %p, %p)\n", hPhysicalGPU, pActiveApps, pTotal);
+    if (!hPhysicalGPU)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    NvAPI_LongString app = {'W','i','n','e',' ','D','e','s','k','t','o','p','.','e','x','e',0};
+    pActiveApps[0]->version = NV_ACTIVE_APPS_INFO_VER;
+    pActiveApps[0]->processPID = 0;
+    memcpy(pActiveApps[0]->processName, app, sizeof(app));
+    *pTotal = 1;
     return NVAPI_OK;
 }
 
@@ -1665,6 +1687,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
 	{0x42aea16a, NvAPI_GPU_GetRamMaker},
 	{0xba94c56e, NvAPI_GPU_GetPstatesInfo},
+	{0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
