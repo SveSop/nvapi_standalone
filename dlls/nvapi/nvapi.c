@@ -657,16 +657,15 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
 }
 
 /* Simulate getting active 3D apps */
-static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvPhysicalGpuHandle hPhysicalGPU, NV_ACTIVE_APP *pActiveApps[NVAPI_MAX_PROCESSES], NvU32 *pTotal)
+static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvPhysicalGpuHandle hPhysicalGPU, NV_ACTIVE_APP pActiveApps[NVAPI_MAX_PROCESSES], NvU32 *pTotal)
 {
     TRACE("(%p, %p, %p)\n", hPhysicalGPU, pActiveApps, pTotal);
     if (!hPhysicalGPU)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    NvAPI_LongString app = {'W','i','n','e',' ','D','e','s','k','t','o','p','.','e','x','e',0};
-    pActiveApps[0]->version = NV_ACTIVE_APPS_INFO_VER;
-    pActiveApps[0]->processPID = 0;
-    memcpy(pActiveApps[0]->processName, app, sizeof(app));
+    pActiveApps->version = NV_ACTIVE_APPS_INFO_VER;
+    pActiveApps->processPID = 1000;
+    strcpy(pActiveApps->processName, "Wine Desktop.exe");
     *pTotal = 1;
     return NVAPI_OK;
 }
@@ -740,13 +739,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = 0;			/* Possibly Pstate-0 "Performance" */
-    pPstatesInfo->pstates[0].reserved = 0;			/* These bits are reserved for future use (must be always 0) ref. NV Docs */
-    pPstatesInfo->pstates[0].clocks[7] = (gpu * 1000);		/* Seems to be "current" gpu clock */
-    pPstatesInfo->pstates[0].baseVoltages[0] = 1;
-    pPstatesInfo->pstates[1].pstateId = 0;
-    pPstatesInfo->pstates[1].reserved = 0;
-    pPstatesInfo->pstates[1].clocks[3] = (memclk * 1000);	/* Seems to be "current" memory clock */
+    pPstatesInfo->pstates[0].pstateId = 0;					/* Pstate-0 "Performance" */
+    pPstatesInfo->pstates[0].reserved = 0;					/* These bits are reserved for future use (must be always 0) ref. NV Docs */
+    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (gpu * 1000);	/* "current" gpu clock */
+    pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;			/* "OC" gpu clock - set to 0 for no OC */
+    pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (memclk * 1000);	/* "current" memory clock */
+    pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;			/* "OC" memory clock - set to 0 for no OC */
     pPstatesInfo->ov.numVoltages = 1;
     return NVAPI_OK;
 }
@@ -768,18 +766,16 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = 0;			/* Possibly Pstate-0 "Performance" */
+    pPstatesInfo->pstates[0].pstateId = 0;			/* Pstate-0 "Performance" */
     pPstatesInfo->pstates[0].flags = 0;
-    pPstatesInfo->pstates[0].clocks[0].domainId = 0;
+    pPstatesInfo->pstates[0].clocks[0].domainId = 0;		/* Gpu clock */
     pPstatesInfo->pstates[0].clocks[0].flags = 0;
-    pPstatesInfo->pstates[0].clocks[7].freq = (gpu * 1000);	/* Using same as GetPstates20 possibly for GPU clock */
-    pPstatesInfo->pstates[0].voltages[0].domainId = 0;
-    pPstatesInfo->pstates[0].voltages[0].flags = 0;		/* Reserved */
-    pPstatesInfo->pstates[1].clocks[0].domainId = 0;
+    pPstatesInfo->pstates[0].clocks[0].freq = (gpu * 1000);	/* GPU clock */
+    pPstatesInfo->pstates[1].pstateId = 0;                      /* Pstate-0 "Performance" */
+    pPstatesInfo->pstates[1].flags = 0;
+    pPstatesInfo->pstates[1].clocks[0].domainId = 1;		/* Memory clock */
     pPstatesInfo->pstates[1].clocks[0].flags = 0;
-    pPstatesInfo->pstates[1].clocks[3].freq = (memclk * 1000);	/* Using same as GetPstates20 possibly for mem clock */
-    pPstatesInfo->pstates[1].voltages[0].domainId = 0;
-    pPstatesInfo->pstates[1].voltages[0].flags = 0;             /* Reserved */
+    pPstatesInfo->pstates[1].clocks[0].freq = (memclk * 1000);	/* Mem clock */
     return NVAPI_OK;
 }
 
@@ -1124,11 +1120,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhys
 /* NvAPI Version String */
 static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDesc)
 {
-    NvAPI_ShortString version = {'1','7','3','5',0};
-
     TRACE("(%p)\n", szDesc);
-
-    memcpy(szDesc, version, sizeof(version));
+    get_nv_driver_version();
+    /* Windows reports nvapi.dll version same as driver version */
+    /* So i guess "shortversion" is as good as any number?      */
+    strcpy(&nvver[3], &nvver[3 + 1]);	/* Truncate version     */
+    strcpy(szDesc, nvver);
     return NVAPI_OK;
 }
 
