@@ -111,6 +111,23 @@ typedef enum
     NV_GPU_CLOCK_FREQUENCIES_CLOCK_TYPE_NUM = 3
 } NV_GPU_CLOCK_FREQUENCIES_CLOCK_TYPE;
 
+typedef enum
+{
+    NV_SYSTEM_TYPE_GPU_UNKNOWN     = 0,
+    NV_SYSTEM_TYPE_IGPU            = 1, /* Integrated GPU */
+    NV_SYSTEM_TYPE_DGPU            = 2, /* Discrete GPU */
+} NV_GPU_TYPE;
+
+typedef enum
+{
+    NVAPI_GPU_BUS_TYPE_UNDEFINED    = 0,
+    NVAPI_GPU_BUS_TYPE_PCI          = 1,
+    NVAPI_GPU_BUS_TYPE_AGP          = 2,
+    NVAPI_GPU_BUS_TYPE_PCI_EXPRESS  = 3,
+    NVAPI_GPU_BUS_TYPE_FPCI         = 4,
+    NVAPI_GPU_BUS_TYPE_AXI          = 5,
+} NV_GPU_BUS_TYPE;
+
 typedef struct
 {
     NvU32		version;
@@ -270,6 +287,16 @@ typedef struct
 #define NV_GPU_PERF_PSTATES_INFO_V2_VER MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES_INFO_V2, 2)
 typedef NV_GPU_PERF_PSTATES_INFO_V2 NV_GPU_PERF_PSTATES_INFO;
 
+typedef enum
+{
+    NVAPI_THERMAL_TARGET_NONE          = 0,
+    NVAPI_THERMAL_TARGET_GPU           = 1,     /* GPU core temperature requires NvPhysicalGpuHandle */
+    NVAPI_THERMAL_TARGET_MEMORY        = 2,     /* GPU memory temperature requires NvPhysicalGpuHandle */
+    NVAPI_THERMAL_TARGET_POWER_SUPPLY  = 4,     /* GPU power supply temperature requires NvPhysicalGpuHandle */
+    NVAPI_THERMAL_TARGET_BOARD         = 8,     /* GPU board ambient temperature requires NvPhysicalGpuHandle */
+    NVAPI_THERMAL_TARGET_UNKNOWN       = -1,
+} NV_THERMAL_TARGET;
+
 typedef struct
 {
     NvU32 version;
@@ -279,7 +306,7 @@ typedef struct
        NvS32 defaultMinTemp;
        NvS32 defaultMaxTemp;
        NvS32 currentTemp;
-       NvU32 target;
+       NV_THERMAL_TARGET target;
     } sensor[NVAPI_MAX_THERMAL_SENSORS_PER_GPU];
 } NV_GPU_THERMAL_SETTINGS_V2;
 

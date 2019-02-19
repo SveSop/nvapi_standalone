@@ -832,7 +832,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
 }
 
 /* GPU Type - Discrete */
-static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pGpuType)
+static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_TYPE *pGpuType)
 {
     TRACE("(%p, %p)\n", hPhysicalGpu, pGpuType);
 
@@ -1136,7 +1136,48 @@ static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDe
     return NVAPI_OK;
 }
 
-/* Nvidia GPU BusID */
+/* nVidia GPU Bus Type */
+static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_BUS_TYPE *pBusType)
+{
+    int btype;
+    TRACE("(%p, %p)\n", hPhysicalGpu,  pBusType);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+                return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    /* Get GPU_BUS_TYPE from NVCtrl */
+    Bool bustype=XNVCTRLQueryAttribute(display, 0, 0, NV_CTRL_BUS_TYPE, &btype);
+    XCloseDisplay(display);
+    if (!bustype) {
+            FIXME("invalid display: %d\n", btype);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    /* NVCtrl has different type enum than nvapi, so some "conversion" must happen 	*/
+    /* NVCTRL				NVAPI						*/
+    /* AGP=0				0=undefined					*/
+    /* PCI=1				1=PCI		(The same!)			*/
+    /* PCIe=2				2=AGP						*/
+    /* Integrated=3			3=PCIe						*/
+    switch(btype){
+       case 0: (*pBusType=2); break;
+       case 1: (*pBusType=1); break;
+       case 2: (*pBusType=3); break;
+       case 3: (*pBusType=0); break;
+       default: (*pBusType=0); break;
+    }
+    if (!pBusType)
+      return NVAPI_INVALID_ARGUMENT;
+
+    return NVAPI_OK;
+}
+
+/* nVidia GPU BusID */
 static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusId)
 {
     int pcibus;
@@ -1692,6 +1733,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x42aea16a, NvAPI_GPU_GetRamMaker},
 	{0xba94c56e, NvAPI_GPU_GetPstatesInfo},
 	{0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
+        {0x1bb18724, NvAPI_GPU_GetBusType},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
