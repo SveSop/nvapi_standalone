@@ -108,23 +108,22 @@ typedef enum
     NV_GPU_CLOCK_FREQUENCIES_CURRENT_FREQ = 0,
     NV_GPU_CLOCK_FREQUENCIES_BASE_CLOCK = 1,
     NV_GPU_CLOCK_FREQUENCIES_BOOST_CLOCK = 2,
+    NV_GPU_CLOCK_FREQUENCIES_CLOCK_TYPE_NUM = 3
 } NV_GPU_CLOCK_FREQUENCIES_CLOCK_TYPE;
 
 typedef struct
 {
     NvU32		version;
-    NvU32		ClockType:2;
-    NvU32		reserved:22;
-    NvU32		reserved1:8;
+    NvU32		reserved;
     struct {
         NvU32   bIsPresent:1;
         NvU32   reserved:31;
         NvU32   frequency;
     }domain[NVAPI_MAX_GPU_PUBLIC_CLOCKS];
-} NV_GPU_CLOCK_FREQUENCIES_V2;
+} NV_GPU_CLOCK_FREQUENCIES_V1;
 
-#define NV_GPU_CLOCK_FREQUENCIES_V2_VER MAKE_NVAPI_VERSION(NV_GPU_CLOCK_FREQUENCIES_V2, 2)
-typedef NV_GPU_CLOCK_FREQUENCIES_V2 NV_GPU_CLOCK_FREQUENCIES;
+#define NV_GPU_CLOCK_FREQUENCIES_V1_VER MAKE_NVAPI_VERSION(NV_GPU_CLOCK_FREQUENCIES_V1, 1)
+typedef NV_GPU_CLOCK_FREQUENCIES_V1 NV_GPU_CLOCK_FREQUENCIES;
 
 typedef struct {
     int value;
@@ -207,6 +206,12 @@ typedef struct
 
 #define NV_ACTIVE_APPS_INFO_VER MAKE_NVAPI_VERSION(NV_ACTIVE_APP, 2)
 
+typedef enum
+{
+    NVAPI_GPU_PERF_PSTATE_P0 = 0,
+    NVAPI_GPU_PERF_PSTATE_P1 = 1,
+} NV_GPU_PERF_PSTATE_ID;
+
 typedef struct
 {
     NvU32 version;
@@ -216,12 +221,12 @@ typedef struct
     NvU32 numClocks;
     NvU32 numBaseVoltages;
        struct {
-       NvU32 pstateId;
+       NV_GPU_PERF_PSTATE_ID pstateId;
        NvU32 bIsEditable:1;
        NvU32 reserved:31;
        NV_GPU_PSTATE20_CLOCK_ENTRY_V1 clocks[NVAPI_MAX_GPU_PSTATE20_CLOCKS];
        NV_GPU_PSTATE20_BASE_VOLTAGE_ENTRY_V1 baseVoltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
-    } pstates[16];
+    } pstates[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
        struct {
        NvU32 numVoltages;
        NV_GPU_PSTATE20_BASE_VOLTAGE_ENTRY_V1 voltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
@@ -233,17 +238,11 @@ typedef NV_GPU_PERF_PSTATES20_INFO_V2 NV_GPU_PERF_PSTATES20_INFO;
 
 typedef enum
 {
-    NVAPI_GPU_PERF_PSTATE_P0 = 0,
-    NVAPI_GPU_PERF_PSTATE_P1 = 1,
-} NV_GPU_PERF_PSTATE_ID;
-
-typedef enum
-{
     NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS = 0,
-    NVAPI_GPU_PUBLIC_CLOCK_MEMORY = 1,
-    NVAPI_GPU_PUBLIC_CLOCK_PROCESSOR = 2,
-    NVAPI_GPU_PUBLIC_CLOCK_VIDEO = 4,
-} NV_GPU_PUBLIC_CLOCK;
+    NVAPI_GPU_PUBLIC_CLOCK_MEMORY = 4,
+    NVAPI_GPU_PUBLIC_CLOCK_PROCESSOR = 7,
+    NVAPI_GPU_PUBLIC_CLOCK_UNDEFINED = NVAPI_MAX_GPU_PUBLIC_CLOCKS
+} NV_GPU_PUBLIC_CLOCK_ID;
 
 typedef struct
 {
@@ -256,7 +255,7 @@ typedef struct
        NV_GPU_PERF_PSTATE_ID pstateId;
        NvU32 flags;
        struct {
-          NV_GPU_PUBLIC_CLOCK domainId;
+          NV_GPU_PUBLIC_CLOCK_ID domainId;
           NvU32 flags;
           NvU32 freq;
        } clocks[NVAPI_MAX_GPU_PERF_CLOCKS];

@@ -697,8 +697,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     get_nv_clocks();
     int gpu=(clocks >> 16);
     short memclk=clocks;
-    pClkFreqs->version = NV_GPU_CLOCK_FREQUENCIES_V2_VER;
-    pClkFreqs->ClockType = 0;					/* Current clocks */
+    pClkFreqs->version = NV_GPU_CLOCK_FREQUENCIES_V1_VER;
     pClkFreqs->reserved = 0;					/* These bits are reserved for future use. Must be set to 0. */
     pClkFreqs->domain[0].bIsPresent = 1;
     pClkFreqs->domain[0].frequency = (gpu * 1000);		/* Core clock */
@@ -760,20 +759,31 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     int gpu=(clocks >> 16);
     short memclk=clocks;
     pPstatesInfo->version = NV_GPU_PERF_PSTATES_INFO_V2_VER;
-    pPstatesInfo->flags = 0;					/* Reserved */
+    pPstatesInfo->flags = 1;					/* Reserved */
     pPstatesInfo->numPstates = 1;
-    pPstatesInfo->numClocks = 1;
+    pPstatesInfo->numClocks = 2;
     pPstatesInfo->numVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0;			/* Pstate-0 "Performance" */
     pPstatesInfo->pstates[0].flags = 0;
     pPstatesInfo->pstates[0].clocks[0].domainId = 0;		/* Gpu clock */
-    pPstatesInfo->pstates[0].clocks[0].flags = 0;
+    pPstatesInfo->pstates[0].clocks[0].flags = 1;
     pPstatesInfo->pstates[0].clocks[0].freq = (gpu * 1000);	/* GPU clock */
-    pPstatesInfo->pstates[1].pstateId = 0;                      /* Pstate-0 "Performance" */
-    pPstatesInfo->pstates[1].flags = 0;
-    pPstatesInfo->pstates[1].clocks[0].domainId = 1;		/* Memory clock */
-    pPstatesInfo->pstates[1].clocks[0].flags = 0;
-    pPstatesInfo->pstates[1].clocks[0].freq = (memclk * 1000);	/* Mem clock */
+    pPstatesInfo->pstates[0].clocks[1].domainId = 4;		/* Memory clock */
+    pPstatesInfo->pstates[0].clocks[1].flags = 1;
+    pPstatesInfo->pstates[0].clocks[1].freq = (memclk * 1000);	/* Mem clock */
+    /* Get CORE Voltage from NVCtrl */ 
+    int corevolt;
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+		return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool gpuvolt=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CORE_VOLTAGE, &corevolt);
+    XCloseDisplay(display);
+    if (!gpuvolt) {
+            FIXME("invalid display: %d\n", corevolt);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    pPstatesInfo->pstates[0].voltages[0].mvolt = (corevolt / 1000);	/* CoreVolt in mVolt */
     return NVAPI_OK;
 }
 
@@ -1017,8 +1027,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
     uint32_t devid=(uint32_t) dev << 16 | ven;
     *pDeviceId = devid; 				/* Final device and vendor ID */
     *pSubSystemId = 828380258; 				/* MSI board maker - NVCtrl does not have this, so fake it */
-    *pRevisionId = 161;
-    *pExtDeviceId = 0;
+    *pRevisionId = 161;					/* Rev A1 */
     return NVAPI_OK;
 }
 
