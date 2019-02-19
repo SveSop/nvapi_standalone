@@ -337,12 +337,12 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     get_nv_driver_version();
     char *branch = nvver;
     pVersion->drvVersion = strtoul(nvver, &nvver, 10);		/* Full driver version string */
-    NvAPI_ShortString build_str = "R0_00\0"; 			/* Empty "branch" string */
+    NvAPI_ShortString build_str = "r0_00\0"; 			/* Empty "branch" string */
     /* Trunkate driver version */
     strcpy(&nvver[3], &nvver[3 + 1]);
     /* Create "branch" version */
     strcpy(&branch[2], &branch[7 + 1]); 			/* Get "major" version			*/
-    lstrcpynA(pVersion->szBuildBranchString, build_str, 1);	/*					*/
+    lstrcpynA(pVersion->szBuildBranchString, build_str, 2);	/*					*/
     pVersion->szBuildBranchString[1] = '\0';
     strcat(pVersion->szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
     strcat(pVersion->szBuildBranchString, build_str + 1); 	/*  Final branch version from NvAPI	*/
@@ -595,14 +595,14 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32 *pDriverVers
 
     /* Return driver version */
     get_nv_driver_version();
-    NvAPI_ShortString build_str = "R0_00\0"; 		/* Empty "branch" string */
+    NvAPI_ShortString build_str = "r0_00\0"; 		/* Empty "branch" string */
     char *branch = nvver;
     /* Create "short" driver version */
     strcpy(&nvver[3], &nvver[3 + 1]);
     *pDriverVersion = strtoul(nvver, &nvver, 10); 	/* Short driver version string from NvAPI */
     /* Create "branch" version */
     strcpy(&branch[2], &branch[7 + 1]); 		/*  Get "major" version			*/
-    lstrcpynA(szBuildBranchString, build_str, 1);	/*					*/
+    lstrcpynA(szBuildBranchString, build_str, 2);	/*					*/
     szBuildBranchString[1] = '\0';			/*  Copy strings together		*/
     strcat(szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
     strcat(szBuildBranchString, build_str + 1);		/*  Final branch version from NvAPI	*/
@@ -657,16 +657,14 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
 }
 
 /* Simulate getting active 3D apps */
-static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvPhysicalGpuHandle hPhysicalGPU, NV_ACTIVE_APP pActiveApps[NVAPI_MAX_PROCESSES], NvU32 *pTotal)
+static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvDisplayHandle hNvDisp, NV_ACTIVE_APP *pActiveApps, NvU32 *pTotal)
 {
-    TRACE("(%p, %p, %p)\n", hPhysicalGPU, pActiveApps, pTotal);
-    if (!hPhysicalGPU)
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-
-    pActiveApps->version = NV_ACTIVE_APPS_INFO_VER;
-    pActiveApps->processPID = 1000;
-    strcpy(pActiveApps->processName, "Wine Desktop.exe");
-    *pTotal = 1;
+    TRACE("(%p, %p, %p)\n", hNvDisp, pActiveApps, pTotal);
+    if (hNvDisp && hNvDisp != FAKE_DISPLAY)
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    pActiveApps[0].processPID = 1000;				/* Fake PID of app			*/
+    strcpy(pActiveApps[0].processName, "Wine Desktop.exe");	/* Fake appname				*/
+    *pTotal = 1;						/* Total number of active 3D apps	*/
     return NVAPI_OK;
 }
 
