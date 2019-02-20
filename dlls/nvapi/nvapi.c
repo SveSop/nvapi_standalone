@@ -871,6 +871,31 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hP
     return NVAPI_OK;
 }
 
+/* Get PCIe "lanes" */
+static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPCIEDownstreamWidth(NvPhysicalGpuHandle hPhysicalGpu,NvU32 *pWidth)
+{
+    int lanes;
+    TRACE("(%p, %p)\n", hPhysicalGpu, pWidth);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    if (!(display = XOpenDisplay(NULL))) {
+                TRACE("(%p)\n", XDisplayName(NULL));
+                return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+    }
+    Bool planes=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_BUS_RATE, &lanes);
+    XCloseDisplay(display);
+    if (!planes) {
+            FIXME("invalid display: %d\n", lanes);
+            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+    *pWidth = lanes;
+    return NVAPI_OK;
+}
+
 /* Get GPU load in "Performance mode" */
 static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_DYNAMIC_PSTATES_INFO_EX *pDynamicPstatesInfoEx)
 {
@@ -1734,6 +1759,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0xba94c56e, NvAPI_GPU_GetPstatesInfo},
 	{0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
         {0x1bb18724, NvAPI_GPU_GetBusType},
+	{0xd048c3b1, NvAPI_GPU_GetCurrentPCIEDownstreamWidth},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
