@@ -341,7 +341,7 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     /* Trunkate driver version */
     strcpy(&nvver[3], &nvver[3 + 1]);
     /* Create "branch" version */
-    strcpy(&branch[2], &branch[7 + 1]); 			/* Get "major" version			*/
+    strcpy(&branch[2], &branch[10]);				/* Get "major" version			*/
     lstrcpynA(pVersion->szBuildBranchString, build_str, 2);	/*					*/
     pVersion->szBuildBranchString[1] = '\0';
     strcat(pVersion->szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
@@ -601,7 +601,7 @@ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32 *pDriverVers
     strcpy(&nvver[3], &nvver[3 + 1]);
     *pDriverVersion = strtoul(nvver, &nvver, 10); 	/* Short driver version string from NvAPI */
     /* Create "branch" version */
-    strcpy(&branch[2], &branch[7 + 1]); 		/*  Get "major" version			*/
+    strcpy(&branch[2], &branch[10]);	 		/*  Get "major" version			*/
     lstrcpynA(szBuildBranchString, build_str, 2);	/*					*/
     szBuildBranchString[1] = '\0';			/*  Copy strings together		*/
     strcat(szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
