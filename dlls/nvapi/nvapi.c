@@ -336,10 +336,10 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     pVersion->version = NV_DISPLAY_DRIVER_VERSION_VER;
     get_nv_driver_version();
     char *branch = nvver;
+    /* Trunkate driver version to remove delimiter */
+    strcpy(&nvver[3], &nvver[3 + 1]);
     pVersion->drvVersion = strtoul(nvver, &nvver, 10);		/* Full driver version string */
     NvAPI_ShortString build_str = "r0_00\0"; 			/* Empty "branch" string */
-    /* Trunkate driver version */
-    strcpy(&nvver[3], &nvver[3 + 1]);
     /* Create "branch" version */
     strcpy(&branch[2], &branch[10]);				/* Get "major" version			*/
     lstrcpynA(pVersion->szBuildBranchString, build_str, 2);	/*					*/
