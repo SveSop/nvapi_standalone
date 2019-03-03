@@ -1175,10 +1175,10 @@ typedef struct {
 #define XIMPreeditPosition	0x0004L
 #define XIMPreeditNothing	0x0008L
 #define XIMPreeditNone		0x0010L
-#define XIMX_StatusArea		0x0100L
-#define XIMX_StatusCallbacks	0x0200L
-#define XIMX_StatusNothing	0x0400L
-#define XIMX_StatusNone		0x0800L
+#define XIMStatusArea		0x0100L
+#define XIMStatusCallbacks	0x0200L
+#define XIMStatusNothing	0x0400L
+#define XIMStatusNone		0x0800L
 
 #define XNVaNestedList "XNVaNestedList"
 #define XNQueryInputStyle "queryInputStyle"
@@ -1196,10 +1196,10 @@ typedef struct {
 #define XNPreeditCaretCallback "preeditCaretCallback"
 #define XNPreeditStateNotifyCallback "preeditStateNotifyCallback"
 #define XNPreeditAttributes "preeditAttributes"
-#define XNX_StatusStartCallback "X_StatusStartCallback"
-#define XNX_StatusDoneCallback "X_StatusDoneCallback"
-#define XNX_StatusDrawCallback "X_StatusDrawCallback"
-#define XNX_StatusAttributes "X_StatusAttributes"
+#define XNStatusStartCallback "statusStartCallback"
+#define XNStatusDoneCallback "statusDoneCallback"
+#define XNStatusDrawCallback "statusDrawCallback"
+#define XNStatusAttributes "statusAttributes"
 #define XNArea "area"
 #define XNAreaNeeded "areaNeeded"
 #define XNSpotLocation "spotLocation"
@@ -1352,15 +1352,15 @@ typedef struct _XIMPreeditCaretCallbackStruct {
 typedef enum {
     XIMTextType,
     XIMBitmapType
-} XIMX_StatusDataType;
+} XIMStatusDataType;
 
-typedef struct _XIMX_StatusDrawCallbackStruct {
-    XIMX_StatusDataType type;
+typedef struct _XIMStatusDrawCallbackStruct {
+    XIMStatusDataType type;
     union {
 	XIMText *text;
 	Pixmap  bitmap;
     } data;
-} XIMX_StatusDrawCallbackStruct;
+} XIMStatusDrawCallbackStruct;
 
 typedef struct _XIMHotKeyTrigger {
     KeySym	 keysym;
@@ -3901,7 +3901,7 @@ extern int XmbLookupString(
     char*		/* buffer_return */,
     int			/* bytes_buffer */,
     KeySym*		/* keysym_return */,
-    X_Status*		/* X_Status_return */
+    X_Status*		/* status_return */
 );
 
 extern int XwcLookupString(
@@ -3910,7 +3910,7 @@ extern int XwcLookupString(
     wchar_t*		/* buffer_return */,
     int			/* wchars_buffer */,
     KeySym*		/* keysym_return */,
-    X_Status*		/* X_Status_return */
+    X_Status*		/* status_return */
 );
 
 extern int Xutf8LookupString(
@@ -3919,7 +3919,7 @@ extern int Xutf8LookupString(
     char*		/* buffer_return */,
     int			/* bytes_buffer */,
     KeySym*		/* keysym_return */,
-    X_Status*		/* X_Status_return */
+    X_Status*		/* status_return */
 );
 
 extern XVaNestedList XVaCreateNestedList(
