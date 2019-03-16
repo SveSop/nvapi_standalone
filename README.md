@@ -56,7 +56,7 @@ The aim is to provide some more functions to NvAPI so that it will fake my GTX97
 
 ## Working on  
 
-* For some reason adding NvAPI_GPU_GetBusId the tool "GPU Caps Viewer" now display CUDA correctly, but no OpenCL (but it works).
+* Implement correct performancelevels.  
 
 ## Info  
 
