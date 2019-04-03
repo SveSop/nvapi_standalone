@@ -21,8 +21,8 @@
 
 #include "winver.h"
 
-#define WINE_FILENAME_STR "nvcuda.dll"
-#define WINE_FILEDESCRIPTION_STR "NVIDIA CUDA Driver, Version 418.49"
+#define WINE_FILENAME_STR "nvcuvid.dll"
+#define WINE_FILEDESCRIPTION_STR "NVIDIA CUDA Video Decoder API, Version 418.49"
 
 #define WINE_FILEVERSION      10,0,132,0
 #define WINE_FILEVERSION_STR "10.0.132.0"
