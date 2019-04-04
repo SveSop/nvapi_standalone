@@ -29,7 +29,11 @@ This creates symlinks in the wineprefix + creates dll-override that ENABLE nvapi
 
 ## Goal  
 
-The aim is to provide some more functions to NvAPI so that it will fake my GTX970 as best it can.
+The aim is to provide some more functions to NvAPI so that it will fake nVidia cards as best it can.  
+The "fakedll" folders have the fake dll's used by wine incase one wants to use the winelib created  
+dll.so files directly with a custom wine. You need to copy the dll.so files in their respective  
+lib/lib64 folders in your custom wine binary folder. Same with the fakedll's. (Recommended only with  
+wine-staging binaries!).  
 
 ## Changes
 
