@@ -244,6 +244,53 @@ static void free_thunks(void)
 #endif
 
 
+int nvidia_settings_query_attribute_str(const char *attribute, char **attr_value)
+{
+    /* These buffers *should* be long enough for most purposes */
+    const int ATTR_BUFFER_SIZE = 512;
+    char command[256];
+    FILE *nvidia_settings = NULL;
+    int nch = 0;
+
+    nch = snprintf(command, sizeof(command), "nvidia-settings -q \"%s\" -t", attribute);
+    if (nch > sizeof(command))
+    {
+        ERR("nvidia-settings command buffer too short!\n");
+        return -1;
+    }
+
+    nvidia_settings = popen(command, "r");
+
+    *attr_value = malloc(ATTR_BUFFER_SIZE);
+    nch = fread(*attr_value, 1, ATTR_BUFFER_SIZE, nvidia_settings);
+    if (nch == ATTR_BUFFER_SIZE)
+    {
+        ERR("nvidia-settings attr_value buffer too short!\n");
+        free(*attr_value);
+        *attr_value = NULL;
+        return pclose(nvidia_settings);
+    }
+
+    (*attr_value)[nch] = '\0';
+    return pclose(nvidia_settings);
+}
+
+int nvidia_settings_query_attribute_int(const char *attribute, int *attr_value)
+{
+    int retcode = 0;
+    char *str_value = NULL;
+
+    retcode = nvidia_settings_query_attribute_str(attribute, &str_value);
+
+    if (retcode == 0)
+        *attr_value = atoi(str_value);
+
+    if (str_value)
+        free(str_value);
+
+    return retcode;
+}
+
 static NvAPI_Status CDECL NvAPI_Initialize(void)
 {
     TRACE("()\n");
@@ -1510,11 +1557,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
 
 static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
 {
-    int numcores;
+    int retcode = 0;
+    int nCores = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pCount);
-
-    if (!hPhysicalGpu)
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
     {
@@ -1522,17 +1567,17 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    /* NVCtrl NV_CTRL_GPU_CORES seems to provide number of "cores" available */
-    open_disp();
-    Bool gpucores=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CORES, &numcores);
-    close_disp();
-    if (!gpucores) {
-            FIXME("invalid display: %d\n", numcores);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    *pCount = numcores;
     if (!pCount)
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+        return NVAPI_INVALID_ARGUMENT;
+
+    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
+    }
+
+    *pCount = nCores;
 
     return NVAPI_OK;
 }

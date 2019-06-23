@@ -92,6 +92,9 @@ typedef struct
 
 extern nvapi_nvml_state g_nvml;
 
+int nvidia_settings_query_attribute_str(const char *attribute, char **attr_value);
+int nvidia_settings_query_attribute_int(const char *attribute, int *attr_value);
+
 typedef enum
 {
     NVAPI_DEVICE_FEATURE_LEVEL_NULL      = -1,
