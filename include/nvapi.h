@@ -21,6 +21,7 @@
 #define __WINE_NVAPI_H
 
 #include "pshpack8.h"
+#include <nvml.h>
 
 typedef unsigned char NvU8;
 typedef unsigned int NvU32;
@@ -82,6 +83,14 @@ typedef void *NvLogicalGpuHandle;
 typedef void *NvDisplayHandle;
 typedef void *StereoHandle;
 typedef void *NVDX_ObjectHandle;
+
+typedef struct
+{
+    unsigned int device_count;
+    nvmlDevice_t device;
+} nvapi_nvml_state;
+
+extern nvapi_nvml_state g_nvml;
 
 typedef enum
 {

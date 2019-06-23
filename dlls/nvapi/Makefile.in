@@ -1,5 +1,5 @@
 MODULE    = nvapi.dll
-IMPORTS   = wined3d d3d11
+IMPORTS   = wined3d d3d11 nvidia-ml
 EXTRALIBS = X11 XNVCtrl
 
 C_SRCS = \

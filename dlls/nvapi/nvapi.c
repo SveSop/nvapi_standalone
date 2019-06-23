@@ -45,6 +45,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 #define FAKE_LOGICAL_GPU ((NvLogicalGpuHandle)0xdead0003)
 #define FAKE_DISPLAY_ID ((NvU32)0xdead0004)
 
+nvapi_nvml_state g_nvml;
 #if defined(__i386__) || defined(__x86_64__)
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -1719,6 +1720,54 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
     return get_thunk_function(offset);
 }
 
+BOOL nvapi_init_nvml(void)
+{
+    nvmlReturn_t rc = nvmlInit();
+    if (rc != NVML_SUCCESS)
+    {
+        ERR("Could not init NVML: error %u\n", rc);
+        return FALSE;
+    }
+
+    rc = nvmlDeviceGetCount(&g_nvml.device_count);
+    if (rc != NVML_SUCCESS)
+    {
+        ERR("Could not init get device count from NVML: error %u\n", rc);
+        return FALSE;
+    }
+
+    if (g_nvml.device_count == 0)
+    {
+        ERR("NVML returned zero devices\n");
+        return FALSE;
+    }
+    else if (g_nvml.device_count > 1) {
+        WARN("NVML returned more than one device (%u), selecting the first one\n",
+             g_nvml.device_count);
+    }
+
+    rc = nvmlDeviceGetHandleByIndex(0, &g_nvml.device);
+    if (rc != NVML_SUCCESS)
+    {
+        ERR("Could not get NVML device handle: error %u\n", rc);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+BOOL nvapi_shutdown_nvml(void)
+{
+    nvmlReturn_t rc = nvmlShutdown();
+    if (nvmlShutdown() != NVML_SUCCESS)
+    {
+        ERR("NVML shutdown failed: error %u\n", rc);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
     TRACE("(%p, %u, %p)\n", instance, reason, reserved);
@@ -1726,10 +1775,15 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
     {
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(instance);
+
+            if (!nvapi_init_nvml())
+                ERR("Could not load NVML; failing out of DllMain\n");
+
             init_thunks();
             break;
         case DLL_PROCESS_DETACH:
             free_thunks();
+            nvapi_shutdown_nvml();
             break;
     }
 

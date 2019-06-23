@@ -12,6 +12,7 @@ lib_wined3d = declare_dependency(link_args: [ '-lwined3d' ])
 lib_d3d11   = declare_dependency(link_args: [ '-ld3d11' ])
 lib_XNVCtrl = declare_dependency(link_args: [ '-lXNVCtrl' ])
 lib_X11     = declare_dependency(link_args: [ '-lX11' ])
+lib_nvml    = declare_dependency(link_args: [ '-lnvidia-ml' ])
 
 winebuild = find_program('winebuild')
 winegcc   = find_program('winegcc')

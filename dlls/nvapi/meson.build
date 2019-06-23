@@ -12,7 +12,7 @@ nvapi_res_target = custom_target('nvapi.res',
 
 nvapi_dll = shared_library('nvapi.dll', nvapi_src,
   name_prefix         : '',
-  dependencies        : [ lib_wined3d, lib_d3d11, lib_X11, lib_XNVCtrl ],
+  dependencies        : [ lib_wined3d, lib_d3d11, lib_X11, lib_XNVCtrl, lib_nvml ],
   include_directories : include_path,
   objects             : 'nvapi.spec',
   install             : true)
