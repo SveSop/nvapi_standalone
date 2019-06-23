@@ -1652,8 +1652,8 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0xaea3fa32, NvAPI_GetPhysicalGPUsFromLogicalGPU},
         {0xe5ac921f, NvAPI_EnumPhysicalGPUs},
         {0xceee8e9f, NvAPI_GPU_GetFullName},
-        {0x33c7358c, NULL}, /* This functions seems to be optional */
-        {0x593e8644, NULL}, /* This functions seems to be optional */
+        {0x33c7358c, NULL}, /* NvAPI_Diag_ReportCallStart, not needed */
+        {0x593e8644, NULL}, /* NvAPI_Diag_ReportCallReturn, not needed */
         {0x1e9d8a31, NvAPI_DISP_GetGDIPrimaryDisplayId},
         {0x9abdd40d, NvAPI_EnumNvidiaDisplayHandle},
         {0x2926aaad, NvAPI_SYS_GetDriverAndBranchVersion},
