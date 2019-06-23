@@ -291,7 +291,7 @@ int nvidia_settings_query_attribute_int(const char *attribute, int *attr_value)
     return retcode;
 }
 
-static int get_video_memory(void)
+static int get_video_memory_total(void)
 {
     static nvmlMemory_t memory = { 0 };
     nvmlReturn_t rc = NVML_SUCCESS;
@@ -307,6 +307,24 @@ static int get_video_memory(void)
         memory.total = 1024 * 1024 * 1024; /* fallback: 1GB */
 
     return memory.total / 1024;
+}
+
+static int get_video_memory_free(void)
+{
+    static nvmlMemory_t memory = { 0 };
+    nvmlReturn_t rc = NVML_SUCCESS;
+
+    if (memory.free)
+        return memory.free / 1024;
+
+    rc = nvmlDeviceGetMemoryInfo(g_nvml.device, &memory);
+    if (rc != NVML_SUCCESS)
+        TRACE("XNVCTRLQueryTargetAttribute(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
+
+    if (memory.free == 0)
+        memory.free = 1024 * 1024 * 1024; /* fallback: 1GB */
+
+    return memory.free / 1024;
 }
 
 static NvAPI_Status CDECL NvAPI_Initialize(void)
@@ -1330,46 +1348,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGp
     return NVAPI_OK;
 }
 
-/* Get total amount of vram from NVCtrl. */
-static int get_nv_vram(void)
-{
-    open_disp();
-    Bool nv_vram=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_VIDEO_RAM, &gpuvram);
-    close_disp();
-    if (!nv_vram) {
-            FIXME("invalid display: %d\n", gpuvram);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-        }
-    return (nv_vram);
-}
-
 /* Another Memory return function */
 static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_DISPLAY_DRIVER_MEMORY_INFO *pMemoryInfo)
 {
-    int dedram, usedvram;
     TRACE("(%p, %p)\n", hPhysicalGpu, pMemoryInfo);
 
     if (!hPhysicalGpu)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    get_nv_vram();								/* Get total vram */
-    open_disp();
-    Bool mem=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY, &dedram);
-    if (!mem) {
-            FIXME("invalid display: %d\n", dedram);
-            return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
-        }
-    Bool memused=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_USED_DEDICATED_GPU_MEMORY, &usedvram);
-    if (!memused) {
-            FIXME("invalid display: %d\n", usedvram);
-            return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
-        }
-    close_disp();
     pMemoryInfo->version = NV_DISPLAY_DRIVER_MEMORY_INFO_V3_VER;
-    pMemoryInfo->dedicatedVideoMemory = gpuvram;				/* Report total vram as dedicated vram */
-    pMemoryInfo->availableDedicatedVideoMemory = dedram * 1024;			/* Get available dedicated vram in kb */
-    pMemoryInfo->sharedSystemMemory = (gpuvram - dedram) * 1024;		/* Caclulate possible virtual vram in kb */
-    pMemoryInfo->curAvailableDedicatedVideoMemory = (dedram - usedvram) * 1024;	/* Calculate available vram in kb */
+    pMemoryInfo->dedicatedVideoMemory = get_video_memory_total();		/* Report total vram as dedicated vram */
+    pMemoryInfo->availableDedicatedVideoMemory = get_video_memory_total();	/* Get available dedicated vram */
+    pMemoryInfo->sharedSystemMemory = get_video_memory_total();			/* Caclulate possible virtual vram */
+    pMemoryInfo->curAvailableDedicatedVideoMemory = get_video_memory_free();	/* Calculate available vram */
 
     if (!pMemoryInfo)
         return NVAPI_INVALID_ARGUMENT;
@@ -1541,7 +1532,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHand
     if (!pSize)
         return NVAPI_INVALID_ARGUMENT;
 
-    *pSize = get_video_memory();
+    *pSize = get_video_memory_total();
     return NVAPI_OK;
 }
 
@@ -1561,7 +1552,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
     if (!pSize)
         return NVAPI_INVALID_ARGUMENT;
 
-    *pSize = get_video_memory();
+    *pSize = get_video_memory_total();
     return NVAPI_OK;
 }
 
