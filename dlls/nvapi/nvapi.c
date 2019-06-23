@@ -22,6 +22,7 @@
 #include "wine/port.h"
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include "Xlib.h"
 #include <NVCtrl/NVCtrlLib.h>
 #include <pthread.h>
@@ -538,35 +539,29 @@ static NvAPI_Status CDECL NvAPI_EnumPhysicalGPUs(NvPhysicalGpuHandle gpuHandle[N
 
 static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szName)
 {
-    char *adapter;
-
-    open_disp();
-    Bool check=XNVCTRLQueryTargetStringAttribute(display,
-                                                NV_CTRL_TARGET_TYPE_GPU,
-                                                0, // target_id
-                                                0, // display_mask
-                                                NV_CTRL_STRING_PRODUCT_NAME,
-                                                &adapter);
-    close_disp();
-    if (!check) {
-        return NVAPI_ERROR;
-    }
-
-    TRACE("(%p, %p)\n", hPhysicalGpu, szName);
+    nvmlReturn_t rc = NVML_SUCCESS;
 
     if (!hPhysicalGpu)
-        return NVAPI_ERROR;
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
     {
         FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_INVALID_HANDLE;
+    }
+
+    if (!szName)
+        return NVAPI_INVALID_ARGUMENT;
+
+    rc = nvmlDeviceGetName(g_nvml.device, szName, NVAPI_SHORT_STRING_MAX);
+    if (rc != NVML_SUCCESS)
+    {
+        ERR("nvml: could not get device name: error %u\n", rc);
         return NVAPI_ERROR;
     }
 
+    TRACE("(%p, %p) -> \"%s\"\n", hPhysicalGpu, szName, szName);
 
-    strcpy(szName, adapter);			/* Report adapter name from NvAPI */
-    if (!szName)
-        return NVAPI_ERROR;
     return NVAPI_OK;
 }
 
