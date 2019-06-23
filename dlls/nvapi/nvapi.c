@@ -291,6 +291,24 @@ int nvidia_settings_query_attribute_int(const char *attribute, int *attr_value)
     return retcode;
 }
 
+static int get_video_memory(void)
+{
+    static nvmlMemory_t memory = { 0 };
+    nvmlReturn_t rc = NVML_SUCCESS;
+
+    if (memory.total)
+        return memory.total / 1024;
+
+    rc = nvmlDeviceGetMemoryInfo(g_nvml.device, &memory);
+    if (rc != NVML_SUCCESS)
+        TRACE("XNVCTRLQueryTargetAttribute(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
+
+    if (memory.total == 0)
+        memory.total = 1024 * 1024 * 1024; /* fallback: 1GB */
+
+    return memory.total / 1024;
+}
+
 static NvAPI_Status CDECL NvAPI_Initialize(void)
 {
     TRACE("()\n");
@@ -1509,7 +1527,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSize)
 {
-    int totram;
     TRACE("(%p, %p)\n", hPhysicalGpu, pSize);
 
     if (!hPhysicalGpu)
@@ -1518,19 +1535,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHand
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
     {
         FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        return NVAPI_INVALID_HANDLE;
     }
 
-    open_disp();
-    Bool memtot=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY, &totram);
-    close_disp();
-    if (!memtot) {
-            FIXME("invalid display: %d\n", totram);
-            return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
-    }
-    *pSize = totram * 1024;					/* Total dedicated ram in Kb - Slightly less than vram */
     if (!pSize)
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+        return NVAPI_INVALID_ARGUMENT;
+
+    *pSize = get_video_memory();
     return NVAPI_OK;
 }
 
@@ -1544,14 +1555,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
     {
         FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+        return NVAPI_INVALID_HANDLE;
     }
 
-    *pSize = (get_nv_vram(), gpuvram);		/* Get total amount of vram incl any system ram*/
-
     if (!pSize)
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+        return NVAPI_INVALID_ARGUMENT;
 
+    *pSize = get_video_memory();
     return NVAPI_OK;
 }
 
