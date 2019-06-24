@@ -971,6 +971,8 @@ static int get_gpu_usage(void)
 /* GPU Usage */
 static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, NV_USAGES_INFO *pUsagesInfo)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlUtilization_t utilization;
     TRACE("(%p, %p)\n", hPhysicalGpu, pUsagesInfo);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -979,16 +981,21 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    get_gpu_usage();								/* NVCtrl output a string with usages */
-    char *gpuuse = strtok_r(gfxload, ",", &gfxload);				/* Conversion */
-    memmove(gpuuse, gpuuse+9, strlen(gpuuse));					/* Magic      */
     pUsagesInfo->version = NV_USAGES_INFO_V1_VER;
     pUsagesInfo->flags = 1;
     pUsagesInfo->usages[0].bIsPresent = 1;
-    pUsagesInfo->usages[0].percentage[0] = strtoul(gpuuse, &gpuuse, 10);	/* This is GPU usage % */
-    char *memuse = strtok_r(gfxload, ",", &gfxload);				/* Conversion */
-    memmove(memuse, memuse+8, strlen(memuse));					/* Magic      */
-    pUsagesInfo->usages[0].percentage[4] = strtoul(memuse, &memuse, 10);	/* This is Memory controller usage % */
+
+    rc = nvmlDeviceGetUtilizationRates(g_nvml.device, &utilization);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query utilizations: error %u\n", rc);
+    }
+    else
+    {
+    pUsagesInfo->usages[0].percentage[0] = utilization.gpu;	/* This is GPU usage % */
+    pUsagesInfo->usages[0].percentage[4] = utilization.memory;	/* This is Memory controller usage % */
+    TRACE("GPU usage: %u\n", rc);
+    }
     return NVAPI_OK;
 }
 
