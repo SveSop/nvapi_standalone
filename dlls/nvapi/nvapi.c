@@ -23,6 +23,7 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "Xlib.h"
 #include <NVCtrl/NVCtrlLib.h>
 #include <pthread.h>
@@ -772,6 +773,10 @@ static int get_nv_clocks(void)
 /* Get GPU/MEM clocks from NVCtrl */
 static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle hPhysicalGPU, NV_GPU_CLOCK_FREQUENCIES *pClkFreqs)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
+    int clock = 0;
+    unsigned int clock_MHz = 0;
     TRACE("(%p, %p)\n", hPhysicalGPU, pClkFreqs);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -779,15 +784,57 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    get_nv_clocks();
-    int gpu=(clocks >> 16);
-    short memclk=clocks;
-    pClkFreqs->version = NV_GPU_CLOCK_FREQUENCIES_V1_VER;
-    pClkFreqs->reserved = 0;					/* These bits are reserved for future use. Must be set to 0. */
-    pClkFreqs->domain[0].bIsPresent = 1;
-    pClkFreqs->domain[0].frequency = (gpu * 1000);		/* Core clock */
-    pClkFreqs->domain[4].bIsPresent = 1;
-    pClkFreqs->domain[4].frequency = (memclk * 1000);		/* Memory clock (DDR type clock) */
+
+    if (!pClkFreqs)
+        return NVAPI_INVALID_ARGUMENT;
+
+    for (clock = 0; clock < NVAPI_MAX_GPU_PUBLIC_CLOCKS; ++clock)
+    {
+        pClkFreqs->domain[clock].bIsPresent = 0;
+        pClkFreqs->domain[clock].frequency = 0;
+    }
+
+    /* Version 1 is always the "current" clock */
+    if (pClkFreqs->version == NV_GPU_CLOCK_FREQUENCIES_VER_2 ||
+        pClkFreqs->version == NV_GPU_CLOCK_FREQUENCIES_VER_3)
+    {
+        switch (pClkFreqs->ClockType) {
+            case NV_GPU_CLOCK_FREQUENCIES_CURRENT_FREQ:
+                clockId = NVML_CLOCK_ID_CURRENT;
+                break;
+            case NV_GPU_CLOCK_FREQUENCIES_BASE_CLOCK:
+                clockId = NVML_CLOCK_ID_APP_CLOCK_DEFAULT;
+                break;
+            case NV_GPU_CLOCK_FREQUENCIES_BOOST_CLOCK:
+                clockId = NVML_CLOCK_ID_CUSTOMER_BOOST_MAX;
+                break;
+        }
+    }
+
+    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query graphics clock: error %u\n", rc);
+    }
+    else
+    {
+        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].bIsPresent = TRUE;
+        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].frequency = clock_MHz * 1000;
+        TRACE("Graphics clock: %u MHz\n", clock_MHz);
+    }
+
+    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query memory clock: error %u\n", rc);
+    }
+    else
+    {
+        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].bIsPresent = TRUE;
+        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency = clock_MHz * 1000;
+        TRACE("Memory clock: %u MHz\n", clock_MHz);
+    }
+
     return NVAPI_OK;
 }
 
