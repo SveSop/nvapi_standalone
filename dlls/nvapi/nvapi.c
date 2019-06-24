@@ -1112,7 +1112,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalG
 /* Get nVidia BIOS Version from NVCtrl */
 static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGPU, NvAPI_ShortString szBiosRevision)
 {
-    char *biosver;
+    nvmlReturn_t rc = NVML_SUCCESS;
+    char version[NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE];
     TRACE("(%p, %p)\n", hPhysicalGPU, szBiosRevision);
 
     if (!hPhysicalGPU)
@@ -1123,22 +1124,18 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
         FIXME("invalid argument: %p\n", hPhysicalGPU);
         return NVAPI_INVALID_ARGUMENT;
     }
-    open_disp();
-    Bool biosv=XNVCTRLQueryTargetStringAttribute(display,
-                                                NV_CTRL_TARGET_TYPE_GPU,
-                                                0, // target_id
-                                                0, // display_mask
-                                                NV_CTRL_STRING_VBIOS_VERSION,
-                                                &biosver);
-    close_disp();
-    if (!biosv) {
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
-    }
-
-    strcpy(szBiosRevision, biosver);
     if (!szBiosRevision)
       return NVAPI_INVALID_ARGUMENT;
-
+    rc = nvmlDeviceGetVbiosVersion(g_nvml.device, version, NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query bios version: error %u\n", rc);
+    }
+    else
+    {
+    strcpy(szBiosRevision, version);
+    TRACE("Video BIOS version: %s\n", szBiosRevision);
+    }
     return NVAPI_OK;
 }
 
