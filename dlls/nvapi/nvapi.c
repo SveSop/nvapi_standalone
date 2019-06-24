@@ -757,20 +757,7 @@ static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvDisplayHandle hNvDisp, NV_
     return NVAPI_OK;
 }
 
-/* Get clocks from NVCtrl */
-static int get_nv_clocks(void)
-{
-    open_disp();
-    Bool nv_clocks=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CLOCK_FREQS, &clocks);
-    close_disp();
-    if (!nv_clocks) {
-            FIXME("invalid display: %d\n", clocks);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-        }
-    return (nv_clocks);
-}
-
-/* Get GPU/MEM clocks from NVCtrl */
+/* Get GPU/MEM clocks from NVml */
 static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle hPhysicalGPU, NV_GPU_CLOCK_FREQUENCIES *pClkFreqs)
 {
     nvmlReturn_t rc = NVML_SUCCESS;
@@ -884,6 +871,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     {
     pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
+    TRACE("Graphics clock: %u MHz\n", clock_MHz);
     }
 
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
@@ -895,6 +883,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     {
     pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" memory clock */
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
+    TRACE("Memory clock: %u MHz\n", clock_MHz);
     }
 
     return NVAPI_OK;
@@ -902,6 +891,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES_INFO *pPstatesInfo)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
+    unsigned int clock_MHz = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -909,9 +901,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    get_nv_clocks();
-    int gpu=(clocks >> 16);
-    short memclk=clocks;
+    if (!pPstatesInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
     pPstatesInfo->version = NV_GPU_PERF_PSTATES_INFO_V2_VER;
     pPstatesInfo->flags = 1;					/* Reserved */
     pPstatesInfo->numPstates = 1;
@@ -919,12 +911,33 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     pPstatesInfo->numVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0;			/* Pstate-0 "Performance" */
     pPstatesInfo->pstates[0].flags = 0;
-    pPstatesInfo->pstates[0].clocks[0].domainId = 0;		/* Gpu clock */
+
+    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query graphics clock: error %u\n", rc);
+    }
+    else
+    {
+    pPstatesInfo->pstates[0].clocks[0].domainId = NVML_CLOCK_GRAPHICS;	/* Gpu clock */
     pPstatesInfo->pstates[0].clocks[0].flags = 1;
-    pPstatesInfo->pstates[0].clocks[0].freq = (gpu * 1000);	/* GPU clock */
-    pPstatesInfo->pstates[0].clocks[1].domainId = 4;		/* Memory clock */
+    pPstatesInfo->pstates[0].clocks[0].freq = (clock_MHz * 1000);	/* GPU clock */
+    TRACE("Graphics clock: %u MHz\n", clock_MHz);
+    }
+
+    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query memory clock: error %u\n", rc);
+    }
+    else
+    {
+    pPstatesInfo->pstates[0].clocks[1].domainId = NVML_CLOCK_MEM;	/* Memory clock */
     pPstatesInfo->pstates[0].clocks[1].flags = 1;
-    pPstatesInfo->pstates[0].clocks[1].freq = (memclk * 1000);	/* Mem clock */
+    pPstatesInfo->pstates[0].clocks[1].freq = (clock_MHz * 1000);	/* Mem clock */
+    TRACE("Memory clock: %u MHz\n", clock_MHz);
+    }
+
     /* Get CORE Voltage from NVCtrl */ 
     int corevolt;
     open_disp();
