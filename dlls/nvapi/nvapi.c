@@ -854,6 +854,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysic
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES20_INFO *pPstatesInfo)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
+    unsigned int clock_MHz = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -861,20 +864,39 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    get_nv_clocks();
-    int gpu=(clocks >> 16);
-    short memclk=clocks;
+    if (!pPstatesInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
     pPstatesInfo->version = NV_GPU_PERF_PSTATES20_INFO_VER2;
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 1;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = 0;					/* Pstate-0 "Performance" */
     pPstatesInfo->pstates[0].reserved = 0;					/* These bits are reserved for future use (must be always 0) ref. NV Docs */
-    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (gpu * 1000);	/* "current" gpu clock */
-    pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;			/* "OC" gpu clock - set to 0 for no OC */
-    pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (memclk * 1000);	/* "current" memory clock */
-    pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;			/* "OC" memory clock - set to 0 for no OC */
     pPstatesInfo->ov.numVoltages = 1;
+
+    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query graphics clock: error %u\n", rc);
+    }
+    else
+    {
+    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
+    pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
+    }
+
+    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query memory clock: error %u\n", rc);
+    }
+    else
+    {
+    pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" memory clock */
+    pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
+    }
+
     return NVAPI_OK;
 }
 
