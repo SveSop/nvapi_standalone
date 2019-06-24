@@ -939,7 +939,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     }
 
     /* Get CORE Voltage from NVCtrl */ 
-    int corevolt;
+    int corevolt = 0;
     open_disp();
     Bool gpuvolt=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CORE_VOLTAGE, &corevolt);
     close_disp();
@@ -977,7 +977,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
     {
     pUsagesInfo->usages[0].percentage[0] = utilization.gpu;	/* This is GPU usage % */
     pUsagesInfo->usages[0].percentage[4] = utilization.memory;	/* This is Memory controller usage % */
-    TRACE("GPU usage: %u\n", rc);
+    TRACE("GPU utilization: %u\n", utilization.gpu);
+    TRACE("Mem utilization: %u\n", utilization.memory);
     }
     return NVAPI_OK;
 }
@@ -1064,6 +1065,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
     else
     {
     pDynamicPstatesInfoEx->utilization[0].percentage = utilization.gpu;
+    TRACE("GPU utilization: %u\n", utilization.gpu);
     }
     return NVAPI_OK;
 }
@@ -1071,7 +1073,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
 /* Get Core Volt */
 static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle hPhysicalGpu, NV_VOLT_STATUS *pVoltStatus)
 {
-    int corevolt;
+    int corevolt = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pVoltStatus);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1225,35 +1227,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
     return NVAPI_OK;
 }
 
-/* Get GPU temperature from NVCtrl */
-static int get_gpu_temp(void)
-{
-    open_disp();
-    Bool gpu_temp=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CORE_TEMPERATURE, &gputemp);
-    close_disp();
-    if (!gpu_temp) {
-            FIXME("invalid display: %d\n", gputemp);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-        }
-    return (gpu_temp);
-}
-
-/* NVCtrl slowdown temp threshold */
-static int get_gpu_maxtemp(void)
-{
-    open_disp();
-    Bool gpu_maxtemp=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_MAX_CORE_THRESHOLD, &gpumaxtemp);
-    close_disp();
-    if (!gpu_maxtemp) {
-            FIXME("invalid display: %d\n", gpumaxtemp);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-        }
-    return (gpu_maxtemp);
-}
-
 /* Thermal Settings - GPU Temp */
 static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 sensorIndex, NV_GPU_THERMAL_SETTINGS *pThermalSettings)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlTemperatureSensors_t sensorType;
+    nvmlTemperatureThresholds_t thresholdType;
+    unsigned int temp = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pThermalSettings);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1265,15 +1245,32 @@ static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhys
     sensorIndex = 0;
     pThermalSettings->count = 1;
     pThermalSettings->sensor[0].controller = 1; /* Gpu_Internal */
-    pThermalSettings->sensor[0].defaultMinTemp = 0;
-    pThermalSettings->sensor[0].defaultMaxTemp = (get_gpu_maxtemp(), gpumaxtemp);	/* GPU max temp threshold */
-    pThermalSettings->sensor[0].currentTemp = (get_gpu_temp(), gputemp); 		/* Current GPU Temp */
     pThermalSettings->sensor[0].target = 1;						/* GPU */
-    pThermalSettings->sensor[1].controller = 1;						/* Gpu_Internal */
-    pThermalSettings->sensor[1].defaultMinTemp = 0;
-    pThermalSettings->sensor[1].defaultMaxTemp = 40;
-    pThermalSettings->sensor[1].currentTemp = 25;					/* "Fake" Memory Temp */
-    pThermalSettings->sensor[1].target = 2;						/* Memory */
+    pThermalSettings->sensor[0].defaultMinTemp = 0;
+
+    thresholdType = NVML_TEMPERATURE_THRESHOLD_GPU_MAX;
+    rc = nvmlDeviceGetTemperatureThreshold(g_nvml.device, thresholdType, &temp);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query gpu max temp: error %u\n", rc);
+    }
+    else
+    {
+    pThermalSettings->sensor[0].defaultMaxTemp = temp;			/* GPU max temp threshold */
+    TRACE("GPU Max temp: %u\n", temp);
+    }
+
+    sensorType = NVML_TEMPERATURE_GPU;
+    rc = nvmlDeviceGetTemperature(g_nvml.device, sensorType, &temp);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query gpu temp: error %u\n", rc);
+    }
+    else
+    {
+    pThermalSettings->sensor[0].currentTemp = temp;	 		/* Current GPU Temp */
+    TRACE("GPU temp: %u\n", temp);
+    }
     return NVAPI_OK;
 }
 
