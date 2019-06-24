@@ -951,23 +951,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     return NVAPI_OK;
 }
 
-static int get_gpu_usage(void)
-{
-    open_disp();
-    Bool gpu_load=XNVCTRLQueryTargetStringAttribute(display,
-                                                NV_CTRL_TARGET_TYPE_GPU,
-                                                0, // target_id
-                                                0, // display_mask
-                                                NV_CTRL_STRING_GPU_UTILIZATION,
-                                                &gfxload);
-    close_disp();
-    if (!gpu_load) {
-            FIXME("invalid display: %s\n", gfxload);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-        }
-    return (gpu_load);
-}
-
 /* GPU Usage */
 static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, NV_USAGES_INFO *pUsagesInfo)
 {
@@ -1061,6 +1044,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPCIEDownstreamWidth(NvPhysicalGpuH
 /* Get GPU load in "Performance mode" */
 static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_DYNAMIC_PSTATES_INFO_EX *pDynamicPstatesInfoEx)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlUtilization_t utilization;
     TRACE("(%p, %p)\n", hPhysicalGpu, pDynamicPstatesInfoEx);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1068,13 +1053,18 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    get_gpu_usage();							/* Get string of usages from NVCtrl */
-    char *result = strtok_r(gfxload, ",", &gfxload);
-    memmove(result, result+9, strlen(result));
     pDynamicPstatesInfoEx->version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
     pDynamicPstatesInfoEx->flags = 1;
     pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;
-    pDynamicPstatesInfoEx->utilization[0].percentage = strtoul(result, &result, 10);
+    rc = nvmlDeviceGetUtilizationRates(g_nvml.device, &utilization);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query utilizations: error %u\n", rc);
+    }
+    else
+    {
+    pDynamicPstatesInfoEx->utilization[0].percentage = utilization.gpu;
+    }
     return NVAPI_OK;
 }
 
