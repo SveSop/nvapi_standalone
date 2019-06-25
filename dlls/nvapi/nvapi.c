@@ -1178,7 +1178,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU
 /* Get device and vendor id from NVCtrl to create NVAPI PCI ID's */
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
 {
-    int pciid;
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlPciInfo_t pci;
     TRACE("(%p, %p, %p, %p, %p)\n", hPhysicalGPU, pDeviceId, pSubSystemId, pRevisionId, pExtDeviceId);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -1186,21 +1187,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Grab Device and vendor ID string from NVCtrl */
-    open_disp();
-    Bool id=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_PCI_ID, &pciid);
-    close_disp();
-    if (!id) {
-            FIXME("invalid display: %d\n", pciid);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    /* Grab Device and vendor ID string from nvml */
+    rc = nvmlDeviceGetPciInfo(g_nvml.device, &pci);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query device ID: error %u\n", rc);
     }
-    /* Need to swap high/low word in the ID from NVCtrl to satisfy NVAPI */
-    uint ven=(pciid >> 16);
-    short dev=pciid;
-    uint32_t devid=(uint32_t) dev << 16 | ven;
-    *pDeviceId = devid; 				/* Final device and vendor ID */
-    *pSubSystemId = 828380258; 				/* MSI board maker - NVCtrl does not have this, so fake it */
-    *pRevisionId = 161;					/* Rev A1 */
+    else
+    {
+    *pDeviceId = pci.pciDeviceId; 				/* Device and vendor ID 		*/
+    *pSubSystemId = pci.pciSubSystemId;				/* Subsystem ID (board manufacturer) 	*/
+    *pRevisionId = 161;						/* Rev A1 				*/
+    TRACE("Device ID: %u, SubSysID: %u\n", pci.pciDeviceId, pci.pciSubSystemId);
+    }
     return NVAPI_OK;
 }
 
