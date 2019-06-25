@@ -1026,7 +1026,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hP
 /* Get PCIe "lanes" */
 static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPCIEDownstreamWidth(NvPhysicalGpuHandle hPhysicalGpu,NvU32 *pWidth)
 {
-    int lanes;
+    nvmlReturn_t rc = NVML_SUCCESS;
+    unsigned int lanes;
     TRACE("(%p, %p)\n", hPhysicalGpu, pWidth);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1034,14 +1035,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPCIEDownstreamWidth(NvPhysicalGpuH
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    open_disp();
-    Bool planes=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_BUS_RATE, &lanes);
-    close_disp();
-    if (!planes) {
-            FIXME("invalid display: %d\n", lanes);
+    rc = nvmlDeviceGetCurrPcieLinkWidth(g_nvml.device, &lanes);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query PCIe lanes: error %u\n", rc);
+    }
+    else
+    {
+    *pWidth = lanes;
+    }
+    if (!pWidth) {
+            FIXME("invalid display: %d\n", *pWidth);
             return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    *pWidth = lanes;
     return NVAPI_OK;
 }
 
