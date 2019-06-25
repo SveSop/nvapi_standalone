@@ -52,8 +52,6 @@ nvapi_nvml_state g_nvml;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 Display *display;
-int clocks, gputemp, gpumaxtemp, gpuvram;
-char *gfxload, *nvver;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -407,26 +405,11 @@ static int close_disp(void)
     return 0;
 }
 
-static int get_nv_driver_version(void)
-{
-    open_disp();
-    Bool drvver=XNVCTRLQueryTargetStringAttribute(display,
-                                                NV_CTRL_TARGET_TYPE_GPU,
-                                                0, // target_id
-                                                0, // display_mask
-                                                NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,
-                                                &nvver);
-    close_disp();
-    if (!drvver) {
-        FIXME("invalid driver: %s\n", nvver);
-        return NVAPI_INVALID_POINTER;
-    }
-    return (drvver);
-}
-
 static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
 {
-    char *adapter;
+    nvmlReturn_t rc = NVML_SUCCESS;
+    char version[16];
+    char szName[NVAPI_SHORT_STRING_MAX];
     TRACE("(%p, %p)\n", hNvDisplay, pVersion);
 
     if (hNvDisplay && hNvDisplay != FAKE_DISPLAY)
@@ -434,35 +417,43 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
         FIXME("invalid display handle: %p\n", hNvDisplay);
         return NVAPI_INVALID_HANDLE;
     }
+
     /* Return driver version */
     pVersion->version = NV_DISPLAY_DRIVER_VERSION_VER;
-    get_nv_driver_version();
-    char *branch = nvver;
-    /* Trunkate driver version to remove delimiter */
-    strcpy(&nvver[3], &nvver[3 + 1]);
-    pVersion->drvVersion = strtoul(nvver, &nvver, 10);		/* Full driver version string */
-    NvAPI_ShortString build_str = "r0_00\0"; 			/* Empty "branch" string */
-    /* Create "branch" version */
-    strcpy(&branch[2], &branch[10]);				/* Get "major" version			*/
-    lstrcpynA(pVersion->szBuildBranchString, build_str, 2);	/*					*/
-    pVersion->szBuildBranchString[1] = '\0';
-    strcat(pVersion->szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
-    strcat(pVersion->szBuildBranchString, build_str + 1); 	/*  Final branch version from NvAPI	*/
     pVersion->bldChangeListNum = 0;
-
-    /* Get Adaptername from NVCtrl */
-    open_disp();
-    Bool check=XNVCTRLQueryTargetStringAttribute(display,
-                                                NV_CTRL_TARGET_TYPE_GPU,
-                                                0, // target_id
-                                                0, // display_mask
-                                                NV_CTRL_STRING_PRODUCT_NAME,
-                                                &adapter);
-    close_disp();
-    if (!check) {
+    rc = nvmlSystemGetDriverVersion(version, 16);               /* Get driver version */
+    if (rc != NVML_SUCCESS) {
+        WARN("invalid driver version!\n");
         return NVAPI_INVALID_POINTER;
     }
-    strcpy(pVersion->szAdapterString, adapter);		/* Report adapter name from NVCtrl */
+    else
+    {
+    char branch[16];
+    char *ptr;
+    char build_str[16] = { 'r', '0', '_', '0', '0', '\0' };	/* Empty "branch" string		*/
+    strcpy(branch, version);
+    /* Trunkate driver version to remove delimiter */
+    strcpy(&version[3], &version[3 + 1]);
+    pVersion->drvVersion = strtoul(version, &ptr, 10);		/* Short driver version string		*/
+    /* Create "branch" version */
+    strcpy(&branch[2], &branch[10]);				/* Get "major" version			*/
+    branch[2] = '\0';                                           /*  Teminate buffer.. or something      */
+    lstrcpynA(pVersion->szBuildBranchString, build_str, 2);	/*					*/
+    pVersion->szBuildBranchString[1] = '\0';			/* End string				*/
+    strcat(pVersion->szBuildBranchString, branch);		/* Creates Rxx0_00 version		*/
+    strcat(pVersion->szBuildBranchString, build_str + 1); 	/* Final branch version from NvAPI	*/
+    }
+    /* Get Adaptername from nvml */
+    rc = nvmlDeviceGetName(g_nvml.device, szName, NVAPI_SHORT_STRING_MAX);
+    if (rc != NVML_SUCCESS)
+    {
+        ERR("nvml: could not get device name: error %u\n", rc);
+        return NVAPI_ERROR;
+    }
+    else
+    {
+    strcpy(pVersion->szAdapterString, szName);			/* Report adapter name from nvml */
+    }
     if (!pVersion)
         return NVAPI_INVALID_ARGUMENT;
     return NVAPI_OK;
@@ -677,26 +668,38 @@ static NvAPI_Status CDECL NvAPI_EnumNvidiaDisplayHandle(NvU32 thisEnum, NvDispla
 /* Set driver short version and branch string */
 static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32 *pDriverVersion, NvAPI_ShortString szBuildBranchString)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    char version[16];
     TRACE("(%p, %p)\n", pDriverVersion, szBuildBranchString);
 
     if (!pDriverVersion || !szBuildBranchString)
         return NVAPI_INVALID_ARGUMENT;
 
     /* Return driver version */
-    get_nv_driver_version();
-    NvAPI_ShortString build_str = "r0_00\0"; 		/* Empty "branch" string */
-    char *branch = nvver;
-    /* Create "short" driver version */
-    strcpy(&nvver[3], &nvver[3 + 1]);
-    *pDriverVersion = strtoul(nvver, &nvver, 10); 	/* Short driver version string from NvAPI */
+    rc = nvmlSystemGetDriverVersion(version, 16);	/* Get driver version */
+    if (rc != NVML_SUCCESS) {
+        WARN("invalid driver version! Error: %u\n", rc);
+        return NVAPI_INVALID_POINTER;
+    }
+    else
+    {
+    char branch[16];
+    char *ptr;
+    char build_str[16] = { 'r', '0', '_', '0', '0', '\0' };	/* Empty "branch" string */
+    strcpy(branch, version);
+    /* Trunkate driver version to remove delimiter */
+    strcpy(&version[3], &version[3 + 1]);
+    *pDriverVersion = strtoul(version, &ptr, 10); 		/*  Short driver version string		*/
     /* Create "branch" version */
-    strcpy(&branch[2], &branch[10]);	 		/*  Get "major" version			*/
-    lstrcpynA(szBuildBranchString, build_str, 2);	/*					*/
-    szBuildBranchString[1] = '\0';			/*  Copy strings together		*/
-    strcat(szBuildBranchString, branch);		/*  Creates Rxx0_00 version		*/
-    strcat(szBuildBranchString, build_str + 1);		/*  Final branch version from NvAPI	*/
-    return NVAPI_OK;
+    strcpy(&branch[2], &branch[10]);	 			/*  Get "major" version			*/
+    branch[2] = '\0';						/*  Teminate buffer.. or something	*/
+    lstrcpynA(szBuildBranchString, build_str, 2);		/*					*/
+    szBuildBranchString[1] = '\0';				/*  End string				*/
+    strcat(szBuildBranchString, branch);			/*  Creates Rxx0_00 version		*/
+    strcat(szBuildBranchString, build_str + 1);			/*  Final branch version from NvAPI	*/
     /* Assumption: 415.22.05 is from the R410 driver "branch" (Not verified) */
+    }
+    return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_Unload(void)
@@ -1276,12 +1279,21 @@ static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhys
 /* NvAPI Version String */
 static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDesc)
 {
+    nvmlReturn_t rc = NVML_SUCCESS;
+    char version[16];
     TRACE("(%p)\n", szDesc);
-    get_nv_driver_version();
     /* Windows reports nvapi.dll version same as driver version */
     /* So i guess "shortversion" is as good as any number?      */
-    strcpy(&nvver[3], &nvver[3 + 1]);	/* Truncate version     */
-    strcpy(szDesc, nvver);
+    rc = nvmlSystemGetDriverVersion(version, 16);               /* Get driver version */
+    if (rc != NVML_SUCCESS) {
+        WARN("invalid driver version!\n");
+        return NVAPI_INVALID_POINTER;
+    }
+    else
+    {
+    strcpy(&version[3], &version[3 + 1]);			/* Truncate version     */
+    strcpy(szDesc, version);
+    }
     return NVAPI_OK;
 }
 
