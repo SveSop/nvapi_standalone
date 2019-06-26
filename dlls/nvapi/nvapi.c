@@ -1343,7 +1343,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu,
 /* nVidia GPU BusID */
 static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusId)
 {
-    int pcibus;
+    nvmlReturn_t rc = NVML_SUCCESS;
+    nvmlPciInfo_t pci;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pBusId);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1352,16 +1353,17 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    /* Get PCI_BUS_ID from NVCtrl */
-    open_disp();
-    Bool bus=XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, 0, 0, NV_CTRL_PCI_BUS, &pcibus);
-    close_disp();
-    if (!bus) {
-            FIXME("invalid display: %d\n", pcibus);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    /* Get PCI_BUS_ID from nvml */
+    rc = nvmlDeviceGetPciInfo(g_nvml.device, &pci);
+    if (rc != NVML_SUCCESS)
+    {
+        WARN("NVML failed to query device ID: error %u\n", rc);
     }
-    *pBusId = (uint)pcibus;
-
+    else
+    {
+    *pBusId = pci.bus;
+    TRACE("PCI Bus ID: %d\n", pci.bus);
+    }
     if (!pBusId)
       return NVAPI_INVALID_ARGUMENT;
 
