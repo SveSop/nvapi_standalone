@@ -1206,8 +1206,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
 /* Get fan speed */
 static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pValue)
 {
-    nvmlReturn_t rc = NVML_SUCCESS;
-    unsigned int speed, fan = 0;
+    int retcode = 0;
+    int speed = 0;
     TRACE("(%p, %p)\n", hPhysicalGPU,  pValue);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -1215,21 +1215,16 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    rc = nvmlDeviceGetFanSpeed_v2(g_nvml.device, fan, &speed);
-    if (rc != NVML_SUCCESS)
+    /* Use nVidia-settings to grab fan RPM */
+    retcode = nvidia_settings_query_attribute_int("GPUCurrentFanSpeedRPM", &speed);
+    if (retcode != 0)
     {
-        WARN("NVML failed to query fan speed: error %u\n", rc);
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
-    else
-    {
-    /* The value above is in % fan speed. Assuming average fan RPM is 3000 rpm we calculate */
-    /* This value depends on manufacturer, but can be checked with Linux nVidia control panel */
-    /* Rough estimate, and not truly importan if its +/- 200 rpm */
-    *pValue = (speed * 30);		/* Result is 30 x % - eg: 100% = 3000 */
-    TRACE("Fan speed is: %u percent\n", speed);
-    }
-    if (!pValue)
-      return NVAPI_NOT_SUPPORTED;
+
+    *pValue = speed;
+    TRACE("Fan speed is: %u rpm\n", speed);
 
     return NVAPI_OK;
 }
