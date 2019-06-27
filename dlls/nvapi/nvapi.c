@@ -1003,7 +1003,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu,
 /* GPU Memory bandwidth and Location */
 static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hPhysicalGpu, NvU32* pWidth, NvU32* pLocation)
 {
-    int bwidth;
+    int bwidth, retcode = 0;
     TRACE("(%p, %p, %p)\n", hPhysicalGpu, pWidth, pLocation);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1011,12 +1011,11 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hP
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    open_disp();
-    Bool buswidth=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_MEMORY_BUS_WIDTH, &bwidth);
-    close_disp();
-    if (!buswidth) {
-            FIXME("invalid display: %d\n", bwidth);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    retcode = nvidia_settings_query_attribute_int("GPUMemoryInterface", &bwidth);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
     *pLocation = 1;						/* 1 = "GPU Dedicated" */
     *pWidth = bwidth;
