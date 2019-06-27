@@ -1480,7 +1480,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamMaker(NvPhysicalGpuHandle hPhysicalGpu
 /* Implement CoolerSettings */
 static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 coolerIndex, NV_GPU_COOLER_SETTINGS *pCoolerInfo)
 {
-    int fanlevel, controltype;
+    int fanlevel, controltype, retcode = 0;
     TRACE("(%p, %d, %p)\n", hPhysicalGpu, coolerIndex, pCoolerInfo);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1488,29 +1488,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysi
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    open_disp();
-    Bool fanstatus=XNVCTRLQueryTargetAttribute(display,
-                          NV_CTRL_TARGET_TYPE_COOLER,
-                          0, // target_id
-                          0, // display_mask
-                          NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL,
-                          &fanlevel);				/* Reads cooler load in % */
-    Bool type=XNVCTRLQueryTargetAttribute(display,
-                          NV_CTRL_TARGET_TYPE_COOLER,
-                          0, // target_id
-                          0, // display_mask
-                          NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,
-                          &controltype);
-    close_disp();
-    if (!fanstatus) {
-        FIXME("invalid result: %d\n", fanlevel);
-        return NVAPI_NOT_SUPPORTED;
+    /* Use nVidia-settings to grab fan load % */
+    retcode = nvidia_settings_query_attribute_int("GPUCurrentFanSpeed", &fanlevel);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
-    if (!type) {
-        FIXME("invalid result: %d\n", controltype);
-        return NVAPI_NOT_SUPPORTED;
+    retcode = nvidia_settings_query_attribute_int("GPUFanControlType", &controltype);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
-
     pCoolerInfo->version = NV_GPU_COOLER_SETTINGS_VER;
     pCoolerInfo->count = 1;
     pCoolerInfo->cooler[0].type = 1;				/* "Fan" type cooler */
@@ -1525,6 +1515,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysi
     pCoolerInfo->cooler[0].target = 1;				/* GPU */
     pCoolerInfo->cooler[0].controlType = controltype;		/* Cooler Control type from NVCtrl */
     pCoolerInfo->cooler[0].active = 1;
+    TRACE("Fanlevel: %d, type: %d\n", fanlevel, controltype);
     return NVAPI_OK;
 }
 
