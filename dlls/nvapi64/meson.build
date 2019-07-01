@@ -1,5 +1,6 @@
 nvapi64_src = [
   '../nvapi/nvapi.c',
+  idl_generator.process('../nvapi/dxvk.idl'),
 ]
 
 

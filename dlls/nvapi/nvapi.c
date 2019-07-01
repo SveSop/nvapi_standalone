@@ -39,6 +39,7 @@
 #include "d3d9.h"
 #include "d3d11.h"
 #include "wine/wined3d.h"
+#include "dxvk.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 
@@ -1661,27 +1662,49 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
 
 static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrContext, NvU32 bEnable, float fMinDepth, float fMaxDepth)
 {
-    struct wined3d_device *device;
-    union { DWORD d; float f; } z;
+    ID3D11Device *d3d11_device;
+    ID3D11DeviceContext *ctx;
+    ID3D11VkExtDevice *dxvk_ext_device;
+    ID3D11VkExtContext *dxvk_ext_context;
 
-    TRACE("(%p, %u, %f, %f)\n", pDeviceOrContext, bEnable, fMinDepth, fMaxDepth);
+    TRACE("(%p, %u, %f, %f): dxvk\n", pDeviceOrContext, bEnable, fMinDepth, fMaxDepth);
 
     if (!pDeviceOrContext)
         return NVAPI_INVALID_ARGUMENT;
 
-    if (FAILED(IUnknown_QueryInterface(pDeviceOrContext, &IID_IWineD3DDevice, (void **)&device)))
+    if (0 > fMinDepth || fMinDepth > fMaxDepth || fMaxDepth > 1)
     {
-        ERR("Failed to get wined3d device handle!\n");
+        ERR("(%p, %u, %f, %f): Invalid argument!\n", pDeviceOrContext, bEnable, fMinDepth, fMaxDepth);
+        return NVAPI_OK; /* Hack: Don't crash games */
+        /*return NVAPI_INVALID_ARGUMENT;*/
+    }
+
+    if (FAILED(IUnknown_QueryInterface(pDeviceOrContext, &IID_ID3D11VkExtDevice, (void **)&dxvk_ext_device)))
+    {
+        ERR("Failed to get DXVK extension device handle!\n");
         return NVAPI_ERROR;
     }
 
-    wined3d_mutex_lock();
-    wined3d_device_set_render_state(device, WINED3D_RS_ADAPTIVETESS_X, bEnable ? WINED3DFMT_NVDB : 0);
-    z.f = fMinDepth;
-    wined3d_device_set_render_state(device, WINED3D_RS_ADAPTIVETESS_Z, z.d);
-    z.f = fMaxDepth;
-    wined3d_device_set_render_state(device, WINED3D_RS_ADAPTIVETESS_W, z.d);
-    wined3d_mutex_unlock();
+    if(!ID3D11VkExtDevice_GetExtensionSupport(dxvk_ext_device, D3D11_VK_EXT_DEPTH_BOUNDS))
+    {
+        ERR("DXVK extension not supported!\n");
+        return NVAPI_ERROR;
+    }
+
+    if (FAILED(IUnknown_QueryInterface(pDeviceOrContext, &IID_ID3D11Device, (void **)&d3d11_device)))
+    {
+        ERR("Failed to get DXVK device handle!\n");
+        return NVAPI_ERROR;
+    }
+
+    ID3D11Device_GetImmediateContext(d3d11_device, &ctx);
+    if (FAILED(IUnknown_QueryInterface(ctx, &IID_ID3D11VkExtContext, (void **)&dxvk_ext_context)))
+    {
+        ERR("Failed to get DXVK context handle!\n");
+        return NVAPI_ERROR;
+    }
+
+    ID3D11VkExtContext_SetDepthBoundsTest(dxvk_ext_context, bEnable, fMinDepth, fMaxDepth);
 
     return NVAPI_OK;
 }
