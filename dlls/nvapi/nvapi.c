@@ -1308,7 +1308,7 @@ static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDe
 /* nVidia GPU Bus Type */
 static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_BUS_TYPE *pBusType)
 {
-    int btype;
+    int retcode, btype;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pBusType);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1316,16 +1316,15 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu,
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Get GPU_BUS_TYPE from NVCtrl */
-    open_disp();
-    Bool bustype=XNVCTRLQueryAttribute(display, 0, 0, NV_CTRL_BUS_TYPE, &btype);
-    close_disp();
-    if (!bustype) {
-            FIXME("invalid display: %d\n", btype);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    /* Get GPU_BUS_TYPE from nvml */
+    retcode = nvidia_settings_query_attribute_int("BusType", &btype);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
-    /* NVCtrl has different type enum than nvapi, so some "conversion" must happen 	*/
-    /* NVCTRL				NVAPI						*/
+    /* nvml has different type enum than nvapi, so some "conversion" must happen 	*/
+    /* NVML				NVAPI						*/
     /* AGP=0				0=undefined					*/
     /* PCI=1				1=PCI		(The same!)			*/
     /* PCIe=2				2=AGP						*/
