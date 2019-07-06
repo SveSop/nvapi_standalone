@@ -829,9 +829,10 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     return NVAPI_OK;
 }
 
-/* Experimenting with "CurrentpState" */
+/* "CurrentpState" */
 static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pCurrentPstate)
 {
+    int retcode, perflevel = 0;
     TRACE("(%p, %p)\n", hPhysicalGPU, pCurrentPstate);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -839,7 +840,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysic
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    *pCurrentPstate = 0;					/* "Performance mode" pstate0 */
+    retcode = nvidia_settings_query_attribute_int("GPUCurrentPerfLevel", &perflevel);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
+    }
+    *pCurrentPstate = perflevel;					/* "Performance mode" read from nvidia settings */
     return NVAPI_OK;
 }
 
@@ -847,7 +854,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
 {
     nvmlReturn_t rc = NVML_SUCCESS;
     nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
-    unsigned int clock_MHz = 0;
+    unsigned int clock_MHz =0;
+    int retcode, perflevel = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -857,12 +865,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     }
     if (!pPstatesInfo)
         return NVAPI_INVALID_ARGUMENT;
+    /* Read performance level from nvidia-settings */
+    retcode = nvidia_settings_query_attribute_int("GPUCurrentPerfLevel", &perflevel);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
+    }
 
     pPstatesInfo->version = NV_GPU_PERF_PSTATES20_INFO_VER2;
-    pPstatesInfo->numPstates = 1;
-    pPstatesInfo->numClocks = 1;
+    pPstatesInfo->numPstates = 4;
+    pPstatesInfo->numClocks = 2;
     pPstatesInfo->numBaseVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = 0;					/* Pstate-0 "Performance" */
+    pPstatesInfo->pstates[0].pstateId = perflevel;				/* Pstate from nvidia-settings */
     pPstatesInfo->pstates[0].reserved = 0;					/* These bits are reserved for future use (must be always 0) ref. NV Docs */
     pPstatesInfo->ov.numVoltages = 1;
 
@@ -873,7 +888,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     }
     else
     {
-    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
+    pPstatesInfo->pstates[0].clocks[0].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
+    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "Max" gpu clock */
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
     TRACE("Graphics clock: %u MHz\n", clock_MHz);
     }
@@ -886,6 +902,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     else
     {
     pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" memory clock */
+    pPstatesInfo->pstates[0].clocks[1].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "Max" memory clock */
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
     TRACE("Memory clock: %u MHz\n", clock_MHz);
     }
@@ -898,6 +915,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     nvmlReturn_t rc = NVML_SUCCESS;
     nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
     unsigned int clock_MHz = 0;
+    int retcode, perflevel = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -908,13 +926,21 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     if (!pPstatesInfo)
         return NVAPI_INVALID_ARGUMENT;
 
+    retcode = nvidia_settings_query_attribute_int("GPUCurrentPerfLevel", &perflevel);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
+    }
+
     pPstatesInfo->version = NV_GPU_PERF_PSTATES_INFO_V2_VER;
     pPstatesInfo->flags = 1;					/* Reserved */
-    pPstatesInfo->numPstates = 1;
+    pPstatesInfo->numPstates = 4;
     pPstatesInfo->numClocks = 2;
     pPstatesInfo->numVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = 0;			/* Pstate-0 "Performance" */
-    pPstatesInfo->pstates[0].flags = 0;
+    pPstatesInfo->pstates[0].pstateId = perflevel;		/* Pstate */
+    pPstatesInfo->pstates[0].flags = 1;
+
 
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
     if (rc != NVML_SUCCESS)
@@ -941,17 +967,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysical
     pPstatesInfo->pstates[0].clocks[1].freq = (clock_MHz * 1000);	/* Mem clock */
     TRACE("Memory clock: %u MHz\n", clock_MHz);
     }
-
-    /* Get CORE Voltage from NVCtrl */ 
-    int corevolt = 0;
-    open_disp();
-    Bool gpuvolt=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CORE_VOLTAGE, &corevolt);
-    close_disp();
-    if (!gpuvolt) {
-            FIXME("invalid display: %d\n", corevolt);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    pPstatesInfo->pstates[0].voltages[0].mvolt = (corevolt / 1000);	/* CoreVolt in mVolt */
+    pPstatesInfo->pstates[0].voltages[0].mvolt = 0;			/* Cannot verify voltage currently */
     return NVAPI_OK;
 }
 
@@ -1082,7 +1098,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
 /* Get Core Volt */
 static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle hPhysicalGpu, NV_VOLT_STATUS *pVoltStatus)
 {
-    int corevolt = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pVoltStatus);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1090,17 +1105,10 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle 
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    open_disp();
-    Bool gpuvolt=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CURRENT_CORE_VOLTAGE, &corevolt);
-    close_disp();
-    if (!gpuvolt) {
-            FIXME("invalid display: %d\n", corevolt);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
     pVoltStatus->version = NV_VOLT_STATUS_V1_VER;
     pVoltStatus->flags = 0;
     pVoltStatus->count = 1;
-    pVoltStatus->value_uV = corevolt;
+    pVoltStatus->value_uV = 0;				/* Cannot verify value at this point */
     pVoltStatus->buf1 = 1;
     return NVAPI_OK;
 }
