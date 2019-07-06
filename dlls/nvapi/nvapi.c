@@ -19,14 +19,8 @@
  */
 
 #include "config.h"
-#include "wine/port.h"
 
 #include <stdarg.h>
-#include <stdlib.h>
-#include <assert.h>
-#include "Xlib.h"
-#include <NVCtrl/NVCtrlLib.h>
-#include <pthread.h>
 
 #define COBJMACROS
 #include "initguid.h"
@@ -38,7 +32,6 @@
 #include "nvapi.h"
 #include "d3d9.h"
 #include "d3d11.h"
-#include "wine/wined3d.h"
 #include "dxvk.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
@@ -50,9 +43,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 
 nvapi_nvml_state g_nvml;
 #if defined(__i386__) || defined(__x86_64__)
-
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-Display *display;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -387,23 +377,6 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromGPUID(NvPhysicalGpuHandle gpuH
     }
 
     return NVAPI_OK;
-}
-
-static int open_disp(void)
-{
-    pthread_mutex_lock(&mutex);
-    if (!(display = XOpenDisplay(NULL))) {
-        TRACE("(%p)\n", XDisplayName(NULL));
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
-    }
-    return 0;
-}
-
-static int close_disp(void)
-{
-    XCloseDisplay(display);
-    pthread_mutex_unlock(&mutex);
-    return 0;
 }
 
 static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
