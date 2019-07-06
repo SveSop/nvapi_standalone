@@ -317,7 +317,7 @@ static int get_video_memory_free(void)
     return memory.free / 1024;
 }
 
-static int get_nvidia_perflevel(void)
+static int get_nvidia_perflevel(void)  // Reads current performancelevel for the adapter
 {
     static nvmlPstates_t pState = { 0 };
     nvmlReturn_t rc = NVML_SUCCESS;
@@ -824,7 +824,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysic
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    *pCurrentPstate = get_nvidia_perflevel();			/* "Performance mode" read from nvidia settings */
+    *pCurrentPstate = get_nvidia_perflevel();			/* "Performance mode" read from nvml */
     return NVAPI_OK;
 }
 
@@ -847,7 +847,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 2;
     pPstatesInfo->numBaseVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = get_nvidia_perflevel();			/* Pstate from nvidia-settings */
+    pPstatesInfo->pstates[0].pstateId = get_nvidia_perflevel();			/* Pstate from nvml */
     pPstatesInfo->pstates[0].reserved = 0;					/* These bits are reserved for future use (must be always 0) ref. NV Docs */
     pPstatesInfo->ov.numVoltages = 1;
 
@@ -859,7 +859,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     else
     {
     pPstatesInfo->pstates[0].clocks[0].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
-    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "Max" gpu clock */
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
     TRACE("Graphics clock: %u MHz\n", clock_MHz);
     }
@@ -872,64 +871,10 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     else
     {
     pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" memory clock */
-    pPstatesInfo->pstates[0].clocks[1].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "Max" memory clock */
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
     TRACE("Memory clock: %u MHz\n", clock_MHz);
     }
 
-    return NVAPI_OK;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetPstatesInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES_INFO *pPstatesInfo)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
-    unsigned int clock_MHz = 0;
-    TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    if (!pPstatesInfo)
-        return NVAPI_INVALID_ARGUMENT;
-
-    pPstatesInfo->version = NV_GPU_PERF_PSTATES_INFO_V2_VER;
-    pPstatesInfo->flags = 1;						/* Reserved */
-    pPstatesInfo->numPstates = 1;
-    pPstatesInfo->numClocks = 2;
-    pPstatesInfo->numVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = get_nvidia_perflevel();		/* Pstate */
-    pPstatesInfo->pstates[0].flags = 1;
-
-
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query graphics clock: error %u\n", rc);
-    }
-    else
-    {
-    pPstatesInfo->pstates[0].clocks[0].domainId = NVML_CLOCK_GRAPHICS;	/* Gpu clock */
-    pPstatesInfo->pstates[0].clocks[0].flags = 1;
-    pPstatesInfo->pstates[0].clocks[0].freq = (clock_MHz * 1000);	/* GPU clock */
-    TRACE("Graphics clock: %u MHz\n", clock_MHz);
-    }
-
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query memory clock: error %u\n", rc);
-    }
-    else
-    {
-    pPstatesInfo->pstates[0].clocks[1].domainId = NVML_CLOCK_MEM;	/* Memory clock */
-    pPstatesInfo->pstates[0].clocks[1].flags = 1;
-    pPstatesInfo->pstates[0].clocks[1].freq = (clock_MHz * 1000);	/* Mem clock */
-    TRACE("Memory clock: %u MHz\n", clock_MHz);
-    }
-    pPstatesInfo->pstates[0].voltages[0].mvolt = 0;			/* Cannot verify voltage currently */
     return NVAPI_OK;
 }
 
@@ -1808,7 +1753,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x70916171, NvAPI_GPU_ClientPowerPoliciesGetStatus},
 	{0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
 	{0x42aea16a, NvAPI_GPU_GetRamMaker},
-	{0xba94c56e, NvAPI_GPU_GetPstatesInfo},
+	{0xba94c56e, NULL}, // This function is deprecated > release 304 ref nVidia docs
 	{0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
         {0x1bb18724, NvAPI_GPU_GetBusType},
 	{0xd048c3b1, NvAPI_GPU_GetCurrentPCIEDownstreamWidth},
