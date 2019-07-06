@@ -1161,7 +1161,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
 /* Get device IRQ from NVCtrl */
 static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pIRQ)
 {
-    int gpuirq;
+    int gpuirq, retcode = 0;
     TRACE("(%p, %p)\n", hPhysicalGPU, pIRQ);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -1169,12 +1169,11 @@ static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    open_disp();
-    Bool irqgpu=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_IRQ, &gpuirq);
-    close_disp();
-    if (!irqgpu) {
-            FIXME("invalid display: %d\n", gpuirq);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    retcode = nvidia_settings_query_attribute_int("Irq", &gpuirq);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
     *pIRQ = gpuirq;
     if (!pIRQ)
