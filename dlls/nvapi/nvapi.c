@@ -854,7 +854,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
 {
     nvmlReturn_t rc = NVML_SUCCESS;
     nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
-    unsigned int clock_MHz =0;
+    unsigned int clock_MHz = 0;
     int retcode, perflevel = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 
@@ -1315,7 +1315,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu,
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Get GPU_BUS_TYPE from nvml */
+    /* Get GPU_BUS_TYPE from nvidia-settings */
     retcode = nvidia_settings_query_attribute_int("BusType", &btype);
     if (retcode != 0)
     {
@@ -1374,7 +1374,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
 /* Shader Pipe Count (Se note below) */
 static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pShaderPipeCount)
 {
-    int numpipes;
+    int retcode, nCores = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pShaderPipeCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1382,27 +1382,26 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhys
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* NVCtrl NV_CTRL_GPU_CORES seems to provide number of "cores" available */
-    open_disp();
-    Bool pipecores=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CORES, &numpipes);
-    close_disp();
-    if (!pipecores) {
-            FIXME("invalid display: %d\n", numpipes);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    /* Read number of "cores" from nvidia-settings */
+    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
 
-    *pShaderPipeCount = numpipes;
+    *pShaderPipeCount = nCores;
     if (!pShaderPipeCount)
       return NVAPI_INVALID_ARGUMENT;
 
     return NVAPI_OK;
 }
 
-/* Uncertain of the difference between shader pipe and shader unit on GTX970.
-   "Shader Units" = NVCtrl GPU_CORES ?				*/
+/* Uncertain of the difference between shader pipe and shader unit.
+   "Shader Units" = GPU_CORES ?				*/
 static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
 {
-    int numunits;
+    int retcode, nCores = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1410,14 +1409,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    open_disp();
-    Bool shaderunits=XNVCTRLQueryAttribute(display,0,0, NV_CTRL_GPU_CORES, &numunits);
-    close_disp();
-    if (!shaderunits) {
-            FIXME("invalid display: %d\n", numunits);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
+    if (retcode != 0)
+    {
+        ERR("nvidia-settings query failed: %d\n", retcode);
+        return NVAPI_ERROR;
     }
-    *pCount = numunits;
+    *pCount = nCores;
     if (!pCount)
       return NVAPI_INVALID_ARGUMENT;
 
@@ -1641,8 +1639,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
 
 static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
 {
-    int retcode = 0;
-    int nCores = 0;
+    int retcode, nCores = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
