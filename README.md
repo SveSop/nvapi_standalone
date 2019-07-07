@@ -8,7 +8,6 @@ Some custom mods for driver version++
 ## Requirements:  
 - [WINE](https://www.winehq.org/)  
 - [Meson](http://mesonbuild.com/)  
-- libxnvctrl-dev (both amd64 and i386)  
 
 ## How to build  
 
@@ -37,10 +36,8 @@ wine-staging binaries!).
 
 ## Changes
 
-* Added the NvAPI_GPU_GetSystemType to set "Desktop"  
-* Updated and added a couple of (so far empty) functions.  
-* Implementing using NVCtrl interface to get real values  
-* NVCtrl reads:  
+* Implementing using nvml and nvidia-settings interface to get real values  
+* A few functions:  
   * GPU Load %  
   * GPU Memory amount  
   * GPU Name  
