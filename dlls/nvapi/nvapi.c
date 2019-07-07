@@ -1072,9 +1072,9 @@ static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrCont
     return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pDeviceOrContext, NvU32 opCode, _Bool pSupported)
+static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pDeviceOrContext, NvU32 opCode, BOOL pSupported)
 {
-    TRACE("(%p, %d)\n", pDeviceOrContext, opCode);
+    TRACE("(%p, %d, %d)\n", pDeviceOrContext, opCode, pSupported);
 
 /* This requires some experimentation. This is HSLS shader extension support for the adapter */
 
@@ -1091,7 +1091,6 @@ static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pD
        case 13: (pSupported = TRUE); break;		// NV_EXTN_OP_FP32_ATOMIC
        default: (pSupported = FALSE); break;
     }
-
     return NVAPI_OK;
 }
 
