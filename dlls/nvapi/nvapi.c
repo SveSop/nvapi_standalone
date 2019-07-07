@@ -318,18 +318,6 @@ static int get_video_memory_free(void)
     return memory.free / 1024;
 }
 
-static int get_nvidia_perflevel(void)  // Reads current performancelevel for the adapter
-{
-    static nvmlPstates_t pState = { 0 };
-    nvmlReturn_t rc = NVML_SUCCESS;
-
-    rc = nvmlDeviceGetPerformanceState(g_nvml.device, &pState);
-    if (rc != NVML_SUCCESS)
-        TRACE("nvmlDeviceGetPerformanceState failed!\n");
-
-    return pState;
-}
-
 static NvAPI_Status CDECL NvAPI_Initialize(void)
 {
     TRACE("()\n");
@@ -627,6 +615,21 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu
     return NVAPI_OK;
 }
 
+static NvAPI_Status CDECL NvAPI_DISP_GetDisplayIdByDisplayName(NvDisplayHandle *pNvDispHandle, NvU32* displayId)
+{
+    TRACE("(%p, %p)\n", pNvDispHandle, displayId);
+
+    if (!displayId)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (!pNvDispHandle)
+        return NVAPI_INVALID_ARGUMENT;
+
+    *displayId = FAKE_DISPLAY_ID;
+
+    return NVAPI_OK;
+}
+
 static NvAPI_Status CDECL NvAPI_DISP_GetGDIPrimaryDisplayId(NvU32* displayId)
 {
     TRACE("(%p)\n", displayId);
@@ -735,337 +738,6 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
     return NVAPI_OK;
 }
 
-/* Simulate getting active 3D apps */
-static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvDisplayHandle hNvDisp, NV_ACTIVE_APP *pActiveApps, NvU32 *pTotal)
-{
-    TRACE("(%p, %p, %p)\n", hNvDisp, pActiveApps, pTotal);
-    if (hNvDisp && hNvDisp != FAKE_DISPLAY)
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
-    pActiveApps[0].processPID = 1000;				/* Fake PID of app			*/
-    strcpy(pActiveApps[0].processName, "Wine Desktop.exe");	/* Fake appname				*/
-    *pTotal = 1;						/* Total number of active 3D apps	*/
-    return NVAPI_OK;
-}
-
-/* Get GPU/MEM clocks from NVml */
-static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle hPhysicalGPU, NV_GPU_CLOCK_FREQUENCIES *pClkFreqs)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
-    int clock = 0;
-    unsigned int clock_MHz = 0;
-    TRACE("(%p, %p)\n", hPhysicalGPU, pClkFreqs);
-
-    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGPU);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-
-    if (!pClkFreqs)
-        return NVAPI_INVALID_ARGUMENT;
-
-    for (clock = 0; clock < NVAPI_MAX_GPU_PUBLIC_CLOCKS; ++clock)
-    {
-        pClkFreqs->domain[clock].bIsPresent = 0;
-        pClkFreqs->domain[clock].frequency = 0;
-    }
-
-    /* Version 1 is always the "current" clock */
-    if (pClkFreqs->version == NV_GPU_CLOCK_FREQUENCIES_VER_2 ||
-        pClkFreqs->version == NV_GPU_CLOCK_FREQUENCIES_VER_3)
-    {
-        switch (pClkFreqs->ClockType) {
-            case NV_GPU_CLOCK_FREQUENCIES_CURRENT_FREQ:
-                clockId = NVML_CLOCK_ID_CURRENT;
-                break;
-            case NV_GPU_CLOCK_FREQUENCIES_BASE_CLOCK:
-                clockId = NVML_CLOCK_ID_APP_CLOCK_DEFAULT;
-                break;
-            case NV_GPU_CLOCK_FREQUENCIES_BOOST_CLOCK:
-                clockId = NVML_CLOCK_ID_CUSTOMER_BOOST_MAX;
-                break;
-        }
-    }
-
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query graphics clock: error %u\n", rc);
-    }
-    else
-    {
-        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].bIsPresent = TRUE;
-        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].frequency = clock_MHz * 1000;
-        TRACE("Graphics clock: %u MHz\n", clock_MHz);
-    }
-
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query memory clock: error %u\n", rc);
-    }
-    else
-    {
-        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].bIsPresent = TRUE;
-        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency = clock_MHz * 1000;
-        TRACE("Memory clock: %u MHz\n", clock_MHz);
-    }
-
-    return NVAPI_OK;
-}
-
-/* "CurrentpState" */
-static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pCurrentPstate)
-{
-    TRACE("(%p, %p)\n", hPhysicalGPU, pCurrentPstate);
-
-    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGPU);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    *pCurrentPstate = get_nvidia_perflevel();			/* "Performance mode" read from nvml */
-    return NVAPI_OK;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES20_INFO *pPstatesInfo)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
-    unsigned int clock_MHz = 0;
-    TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    if (!pPstatesInfo)
-        return NVAPI_INVALID_ARGUMENT;
-
-    pPstatesInfo->version = NV_GPU_PERF_PSTATES20_INFO_VER2;
-    pPstatesInfo->numPstates = 1;
-    pPstatesInfo->numClocks = 2;
-    pPstatesInfo->numBaseVoltages = 1;
-    pPstatesInfo->pstates[0].pstateId = get_nvidia_perflevel();			/* Pstate from nvml */
-    pPstatesInfo->pstates[0].reserved = 0;					/* These bits are reserved for future use (must be always 0) ref. NV Docs */
-    pPstatesInfo->ov.numVoltages = 1;
-
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query graphics clock: error %u\n", rc);
-    }
-    else
-    {
-    pPstatesInfo->pstates[0].clocks[0].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
-    pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
-    TRACE("Graphics clock: %u MHz\n", clock_MHz);
-    }
-
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query memory clock: error %u\n", rc);
-    }
-    else
-    {
-    pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" memory clock */
-    pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
-    TRACE("Memory clock: %u MHz\n", clock_MHz);
-    }
-
-    return NVAPI_OK;
-}
-
-/* GPU Usage */
-static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, NV_USAGES_INFO *pUsagesInfo)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    nvmlUtilization_t utilization;
-    TRACE("(%p, %p)\n", hPhysicalGpu, pUsagesInfo);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-
-    pUsagesInfo->version = NV_USAGES_INFO_V1_VER;
-    pUsagesInfo->flags = 1;
-    pUsagesInfo->usages[0].bIsPresent = 1;
-
-    rc = nvmlDeviceGetUtilizationRates(g_nvml.device, &utilization);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query utilizations: error %u\n", rc);
-    }
-    else
-    {
-    pUsagesInfo->usages[0].percentage[0] = utilization.gpu;	/* This is GPU usage % */
-    pUsagesInfo->usages[0].percentage[4] = utilization.memory;	/* This is Memory controller usage % */
-    TRACE("GPU utilization: %u\n", utilization.gpu);
-    TRACE("Mem utilization: %u\n", utilization.memory);
-    }
-    return NVAPI_OK;
-}
-
-/* GPU Type - Discrete */
-static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_TYPE *pGpuType)
-{
-    TRACE("(%p, %p)\n", hPhysicalGpu, pGpuType);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    *pGpuType = 2; 							/* Discrete GPU Type */
-    return NVAPI_OK;
-}
-
-/* GPU Memory bandwidth and Location */
-static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hPhysicalGpu, NvU32* pWidth, NvU32* pLocation)
-{
-    int bwidth, retcode = 0;
-    TRACE("(%p, %p, %p)\n", hPhysicalGpu, pWidth, pLocation);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    retcode = nvidia_settings_query_attribute_int("GPUMemoryInterface", &bwidth);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-    *pLocation = 1;						/* 1 = "GPU Dedicated" */
-    *pWidth = bwidth;
-    return NVAPI_OK;
-}
-
-/* Get PCIe "lanes" */
-static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPCIEDownstreamWidth(NvPhysicalGpuHandle hPhysicalGpu,NvU32 *pWidth)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    unsigned int lanes;
-    TRACE("(%p, %p)\n", hPhysicalGpu, pWidth);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    rc = nvmlDeviceGetCurrPcieLinkWidth(g_nvml.device, &lanes);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query PCIe lanes: error %u\n", rc);
-    }
-    else
-    {
-    *pWidth = lanes;
-    }
-    if (!pWidth) {
-            FIXME("invalid display: %d\n", *pWidth);
-            return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    return NVAPI_OK;
-}
-
-/* Get GPU load in "Performance mode" */
-static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_DYNAMIC_PSTATES_INFO_EX *pDynamicPstatesInfoEx)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    nvmlUtilization_t utilization;
-    TRACE("(%p, %p)\n", hPhysicalGpu, pDynamicPstatesInfoEx);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    pDynamicPstatesInfoEx->version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
-    pDynamicPstatesInfoEx->flags = 1;
-    pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;
-    rc = nvmlDeviceGetUtilizationRates(g_nvml.device, &utilization);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query utilizations: error %u\n", rc);
-    }
-    else
-    {
-    pDynamicPstatesInfoEx->utilization[0].percentage = utilization.gpu;
-    TRACE("GPU utilization: %u\n", utilization.gpu);
-    }
-    return NVAPI_OK;
-}
-
-/* Get Core Volt */
-static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle hPhysicalGpu, NV_VOLT_STATUS *pVoltStatus)
-{
-    TRACE("(%p, %p)\n", hPhysicalGpu, pVoltStatus);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    pVoltStatus->version = NV_VOLT_STATUS_V1_VER;
-    pVoltStatus->flags = 0;
-    pVoltStatus->count = 1;
-    pVoltStatus->value_uV = 0;				/* Cannot verify value at this point */
-    pVoltStatus->buf1 = 1;
-    return NVAPI_OK;
-}
-
-/* Fakes "Desktop" SystemType */
-static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pSystemType)
-{
-    TRACE("(%p, %p)\n", hPhysicalGPU, pSystemType);
-
-    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGPU);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-
-    *pSystemType = 2;					/* System type "2" = Desktop, "1" = Laptop */
-    return NVAPI_OK;
-}
-
-/* Get nVidia BIOS Version from NVCtrl */
-static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGPU, NvAPI_ShortString szBiosRevision)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    char version[NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE];
-    TRACE("(%p, %p)\n", hPhysicalGPU, szBiosRevision);
-
-    if (!hPhysicalGPU)
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-
-    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid argument: %p\n", hPhysicalGPU);
-        return NVAPI_INVALID_ARGUMENT;
-    }
-    if (!szBiosRevision)
-      return NVAPI_INVALID_ARGUMENT;
-    rc = nvmlDeviceGetVbiosVersion(g_nvml.device, version, NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query bios version: error %u\n", rc);
-    }
-    else
-    {
-    strcpy(szBiosRevision, version);
-    TRACE("Video BIOS version: %s\n", szBiosRevision);
-    }
-    return NVAPI_OK;
-}
-
 /* Get device IRQ from NVCtrl */
 static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pIRQ)
 {
@@ -1090,7 +762,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU
     return NVAPI_OK;
 }
 
-/* Get device and vendor id from NVCtrl to create NVAPI PCI ID's */
+/* Get device and vendor id from nvml to create NVAPI PCI ID's */
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
 {
     nvmlReturn_t rc = NVML_SUCCESS;
@@ -1118,79 +790,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
     return NVAPI_OK;
 }
 
-/* Get fan speed */
-static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pValue)
-{
-    int retcode = 0;
-    int speed = 0;
-    TRACE("(%p, %p)\n", hPhysicalGPU,  pValue);
-
-    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGPU);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    /* Use nVidia-settings to grab fan RPM */
-    retcode = nvidia_settings_query_attribute_int("GPUCurrentFanSpeedRPM", &speed);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-
-    *pValue = speed;
-    TRACE("Fan speed is: %u rpm\n", speed);
-
-    return NVAPI_OK;
-}
-
-/* Thermal Settings - GPU Temp */
-static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 sensorIndex, NV_GPU_THERMAL_SETTINGS *pThermalSettings)
-{
-    nvmlReturn_t rc = NVML_SUCCESS;
-    nvmlTemperatureSensors_t sensorType;
-    nvmlTemperatureThresholds_t thresholdType;
-    unsigned int temp = 0;
-    TRACE("(%p, %p)\n", hPhysicalGpu,  pThermalSettings);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-
-    sensorIndex = 0;
-    pThermalSettings->count = 1;
-    pThermalSettings->sensor[0].controller = 1; /* Gpu_Internal */
-    pThermalSettings->sensor[0].target = 1;						/* GPU */
-    pThermalSettings->sensor[0].defaultMinTemp = 0;
-
-    thresholdType = NVML_TEMPERATURE_THRESHOLD_GPU_MAX;
-    rc = nvmlDeviceGetTemperatureThreshold(g_nvml.device, thresholdType, &temp);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query gpu max temp: error %u\n", rc);
-    }
-    else
-    {
-    pThermalSettings->sensor[0].defaultMaxTemp = temp;			/* GPU max temp threshold */
-    TRACE("GPU Max temp: %u\n", temp);
-    }
-
-    sensorType = NVML_TEMPERATURE_GPU;
-    rc = nvmlDeviceGetTemperature(g_nvml.device, sensorType, &temp);
-    if (rc != NVML_SUCCESS)
-    {
-        WARN("NVML failed to query gpu temp: error %u\n", rc);
-    }
-    else
-    {
-    pThermalSettings->sensor[0].currentTemp = temp;	 		/* Current GPU Temp */
-    TRACE("GPU temp: %u\n", temp);
-    }
-    return NVAPI_OK;
-}
-
 /* NvAPI Version String */
 static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDesc)
 {
@@ -1209,43 +808,6 @@ static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDe
     strcpy(&version[3], &version[3 + 1]);			/* Truncate version     */
     strcpy(szDesc, version);
     }
-    return NVAPI_OK;
-}
-
-/* nVidia GPU Bus Type */
-static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_BUS_TYPE *pBusType)
-{
-    int retcode, btype;
-    TRACE("(%p, %p)\n", hPhysicalGpu,  pBusType);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    /* Get GPU_BUS_TYPE from nvidia-settings */
-    retcode = nvidia_settings_query_attribute_int("BusType", &btype);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-    /* nvml has different type enum than nvapi, so some "conversion" must happen 	*/
-    /* NVML				NVAPI						*/
-    /* AGP=0				0=undefined					*/
-    /* PCI=1				1=PCI		(The same!)			*/
-    /* PCIe=2				2=AGP						*/
-    /* Integrated=3			3=PCIe						*/
-    switch(btype){
-       case 0: (*pBusType=2); break;
-       case 1: (*pBusType=1); break;
-       case 2: (*pBusType=3); break;
-       case 3: (*pBusType=0); break;
-       default: (*pBusType=0); break;
-    }
-    if (!pBusType)
-      return NVAPI_INVALID_ARGUMENT;
-
     return NVAPI_OK;
 }
 
@@ -1365,73 +927,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
     return NVAPI_OK;
 }
 
-/* Set "RamType" to GDDR5 */
-static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pRamType)
-{
-    TRACE("(%p, %p)\n", hPhysicalGpu, pRamType);
-
-    if (!hPhysicalGpu)
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-
-    *pRamType = 8;				/* No similar function in NVCtrl, so "type = 8" is GDDR5 */
-    return NVAPI_OK;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetRamMaker(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pRamMaker)
-{
-    TRACE("(%p, %p)\n", hPhysicalGpu, pRamMaker);
-
-    if (!hPhysicalGpu)
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-
-    *pRamMaker = 0;                              /* Undocumented function. NVCtrl cannot get brand/maker. 0 = "unknown" */
-    return NVAPI_OK;
-}
-
-
-
-/* Implement CoolerSettings */
-static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 coolerIndex, NV_GPU_COOLER_SETTINGS *pCoolerInfo)
-{
-    int fanlevel, controltype, retcode = 0;
-    TRACE("(%p, %d, %p)\n", hPhysicalGpu, coolerIndex, pCoolerInfo);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    /* Use nVidia-settings to grab fan load % */
-    retcode = nvidia_settings_query_attribute_int("GPUCurrentFanSpeed", &fanlevel);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-    retcode = nvidia_settings_query_attribute_int("GPUFanControlType", &controltype);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-    pCoolerInfo->version = NV_GPU_COOLER_SETTINGS_VER;
-    pCoolerInfo->count = 1;
-    pCoolerInfo->cooler[0].type = 1;				/* "Fan" type cooler */
-    pCoolerInfo->cooler[0].controller = 2;			/* "Internal" controller */
-    pCoolerInfo->cooler[0].defaultMinLevel = 0;
-    pCoolerInfo->cooler[0].defaultMaxLevel = 100;
-    pCoolerInfo->cooler[0].currentMinLevel = 0;
-    pCoolerInfo->cooler[0].currentMaxLevel = 100;
-    pCoolerInfo->cooler[0].currentLevel = fanlevel;		/* Fan level in % from NVCtrl */
-    pCoolerInfo->cooler[0].defaultPolicy = 0;
-    pCoolerInfo->cooler[0].currentPolicy = 0;
-    pCoolerInfo->cooler[0].target = 1;				/* GPU */
-    pCoolerInfo->cooler[0].controlType = controltype;		/* Cooler Control type from NVCtrl */
-    pCoolerInfo->cooler[0].active = 1;
-    TRACE("Fanlevel: %d, type: %d\n", fanlevel, controltype);
-    return NVAPI_OK;
-}
-
 static NvAPI_Status CDECL NvAPI_D3D_GetObjectHandleForResource(IUnknown *pDevice, IUnknown *pResource, NVDX_ObjectHandle *pHandle)
 {
     FIXME("(%p, %p, %p): stub\n", pDevice, pResource, pHandle);
@@ -1444,36 +939,6 @@ static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResou
     return NVAPI_ERROR;
 }
 
-static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetStatus(void)
-{
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetStatus(void)
-{
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetInfo(void)
-{
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetPCIEInfo(void)
-{
-    TRACE("()\n");
-    return NVAPI_OK;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetShortName(void)
-{
-    TRACE("()\n");
-    return NVAPI_OK;
-}
-
 static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromDisplay(void)
 {
     TRACE("()\n");
@@ -1481,19 +946,6 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromDisplay(void)
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_PhysxQueryRecommendedState(void)
-{
-    TRACE("()\n");
-    return NVAPI_OK;
-}
-
-/* Deprecated */
-static NvAPI_Status CDECL NvAPI_GPU_GetAllClocks(void)
-{
-    TRACE("()\n");
-    return NVAPI_INVALID_ARGUMENT;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_GetManufacturingInfo(void)
 {
     TRACE("()\n");
     return NVAPI_OK;
@@ -1620,6 +1072,29 @@ static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrCont
     return NVAPI_OK;
 }
 
+static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pDeviceOrContext, NvU32 opCode, _Bool pSupported)
+{
+    TRACE("(%p, %d)\n", pDeviceOrContext, opCode);
+
+/* This requires some experimentation. This is HSLS shader extension support for the adapter */
+
+    switch(opCode){
+       case 1: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL
+       case 2: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL_UP
+       case 3: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL_DOWN
+       case 4: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL_XOR
+       case 5: (pSupported = TRUE); break;		// NV_EXTN_OP_VOTE_ALL
+       case 6: (pSupported = TRUE); break;		// NV_EXTN_OP_VOTE_ANY
+       case 7: (pSupported = TRUE); break;		// NV_EXTN_OP_VOTE_BALLOT
+       case 8: (pSupported = TRUE); break;		// NV_EXTN_OP_GET_LANE_ID
+       case 12: (pSupported = TRUE); break;		// NV_EXTN_OP_FP16_ATOMIC
+       case 13: (pSupported = TRUE); break;		// NV_EXTN_OP_FP32_ATOMIC
+       default: (pSupported = FALSE); break;
+    }
+
+    return NVAPI_OK;
+}
+
 static NVAPI_DEVICE_FEATURE_LEVEL translate_feature_level(D3D_FEATURE_LEVEL level_d3d)
 {
     switch (level_d3d)
@@ -1709,7 +1184,6 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x1e9d8a31, NvAPI_DISP_GetGDIPrimaryDisplayId},
         {0x9abdd40d, NvAPI_EnumNvidiaDisplayHandle},
         {0x2926aaad, NvAPI_SYS_GetDriverAndBranchVersion},
-        {0xd22bdd7e, NvAPI_Unload},
         {0x4b708b54, NvAPI_D3D_GetCurrentSLIState},
         {0xee1370cf, NvAPI_GetLogicalGPUFromDisplay},
         {0xfceac864, NvAPI_D3D_GetObjectHandleForResource},
@@ -1717,24 +1191,11 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x46fbeb03, NvAPI_GPU_GetPhysicalFrameBufferSize},
         {0x5a04b644, NvAPI_GPU_GetVirtualFrameBufferSize},
         {0xc7026a87, NvAPI_GPU_GetGpuCoreCount},
-	{0xe3795199, NvAPI_GPU_GetPCIEInfo},
-	{0xd988f0f3, NvAPI_GPU_GetShortName},
 	{0x1890e8da, NvAPI_GetPhysicalGPUFromDisplay},
 	{0x7a4174f4, NvAPI_GPU_PhysxQueryRecommendedState},
-	{0x1bd69f49, NvAPI_GPU_GetAllClocks},
-	{0xa4218928, NvAPI_GPU_GetManufacturingInfo},
 	{0x35B5fd2f, NvAPI_GPU_GetTargetID},
-	{0xe3640a56, NvAPI_GPU_GetThermalSettings},
-	{0x57F7caac, NvAPI_GPU_GetRamType},
-	{0xdcb616c3, NvAPI_GPU_GetAllClockFrequencies},
-	{0xbaaabfcc, NvAPI_GPU_GetSystemType},
-	{0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
 	{0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
-	{0x5f608315, NvAPI_GPU_GetTachReading},
 	{0x01053fa5, NvAPI_GetInterfaceVersionString},
-	{0x927da4f6, NvAPI_GPU_GetCurrentPstate},
-	{0x6ff81213, NvAPI_GPU_GetPstates20},
-	{0xc16c7e2c, NvAPI_GPU_GetVoltageDomainsStatus},
 	{0x1be0b8e5, NvAPI_GPU_GetBusId},
 	{0x2a0a350f, NvAPI_GPU_GetBusSlotId},
 	{0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
@@ -1742,22 +1203,11 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
-	{0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
 	{0x07f9b368, NvAPI_GPU_GetMemoryInfo},
-	{0x774aa982, NvAPI_GPU_GetMemoryInfo},
-	{0xc33baeb1, NvAPI_GPU_GetGPUType},
-	{0x189a1fdf, NvAPI_GPU_GetUsages},
 	{0xe4715417, NvAPI_GPU_GetIRQ},
-	{0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
-	{0xda141340, NvAPI_GPU_GetCoolerSettings},
-	{0xedcf624e, NvAPI_GPU_ClientPowerTopologyGetStatus},
-	{0x70916171, NvAPI_GPU_ClientPowerPoliciesGetStatus},
-	{0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
-	{0x42aea16a, NvAPI_GPU_GetRamMaker},
-	{0xba94c56e, NULL}, // This function is deprecated > release 304 ref nVidia docs
-	{0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
-        {0x1bb18724, NvAPI_GPU_GetBusType},
-	{0xd048c3b1, NvAPI_GPU_GetCurrentPCIEDownstreamWidth},
+	{0xae457190, NvAPI_DISP_GetDisplayIdByDisplayName},
+	{0x5f68da40, NvAPI_D3D11_IsNvShaderExtnOpCodeSupported},
+        {0xd22bdd7e, NvAPI_Unload},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
