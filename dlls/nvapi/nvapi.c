@@ -31,6 +31,7 @@
 #include "wine/debug.h"
 #include "wine/list.h"
 #include "nvapi.h"
+#include "nvShaderExtnEnums.h"
 #include "d3d9.h"
 #include "d3d11.h"
 #include "dxvk.h"
@@ -784,8 +785,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
     {
     *pDeviceId = pci.pciDeviceId; 				/* Device and vendor ID 		*/
     *pSubSystemId = pci.pciSubSystemId;				/* Subsystem ID (board manufacturer) 	*/
-    *pRevisionId = 161;						/* Rev A1 				*/
-    TRACE("Device ID: %u, SubSysID: %u\n", pci.pciDeviceId, pci.pciSubSystemId);
+    *pRevisionId = 161;						/* Rev A1? 				*/
+    TRACE("Device ID: %u, SubSysID: %u, RevisionID: %p\n", pci.pciDeviceId, pci.pciSubSystemId, pRevisionId);
     }
     return NVAPI_OK;
 }
@@ -828,12 +829,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
     rc = nvmlDeviceGetPciInfo(g_nvml.device, &pci);
     if (rc != NVML_SUCCESS)
     {
-        WARN("NVML failed to query device ID: error %u\n", rc);
+        WARN("NVML failed to query BUSID: error %u\n", rc);
     }
     else
     {
     *pBusId = pci.bus;
-    TRACE("PCI Bus ID: %d\n", pci.bus);
+    TRACE("PCI Bus ID: %p\n", pBusId);
     }
     if (!pBusId)
       return NVAPI_INVALID_ARGUMENT;
@@ -888,22 +889,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
     *pCount = nCores;
     if (!pCount)
       return NVAPI_INVALID_ARGUMENT;
-
-    return NVAPI_OK;
-}
-
-/* GPU BusSlotID */
-static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusSlotId)
-{
-    TRACE("(%p, %p)\n", hPhysicalGpu,  pBusSlotId);
-
-    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGpu);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-
-    *pBusSlotId = 0;
 
     return NVAPI_OK;
 }
@@ -1072,25 +1057,32 @@ static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrCont
     return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pDeviceOrContext, NvU32 opCode, BOOL pSupported)
+static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pDeviceOrContext, NvU32 opCode, BOOL *pSupported)
 {
-    TRACE("(%p, %d, %d)\n", pDeviceOrContext, opCode, pSupported);
+    if (!pDeviceOrContext)
+        return NVAPI_INVALID_ARGUMENT;
 
 /* This requires some experimentation. This is HSLS shader extension support for the adapter */
 
     switch(opCode){
-       case 1: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL
-       case 2: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL_UP
-       case 3: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL_DOWN
-       case 4: (pSupported = TRUE); break;		// NV_EXTN_OP_SHFL_XOR
-       case 5: (pSupported = TRUE); break;		// NV_EXTN_OP_VOTE_ALL
-       case 6: (pSupported = TRUE); break;		// NV_EXTN_OP_VOTE_ANY
-       case 7: (pSupported = TRUE); break;		// NV_EXTN_OP_VOTE_BALLOT
-       case 8: (pSupported = TRUE); break;		// NV_EXTN_OP_GET_LANE_ID
-       case 12: (pSupported = TRUE); break;		// NV_EXTN_OP_FP16_ATOMIC
-       case 13: (pSupported = TRUE); break;		// NV_EXTN_OP_FP32_ATOMIC
-       default: (pSupported = FALSE); break;
+       case NV_EXTN_OP_SHFL: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_SHFL_UP: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_SHFL_DOWN: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_SHFL_XOR: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VOTE_ALL: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VOTE_ANY: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VOTE_BALLOT: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_GET_LANE_ID: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_FP16_ATOMIC: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_FP32_ATOMIC: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_UINT64_ATOMIC: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_GET_SHADING_RATE: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VPRS_EVAL_ATTRIB_AT_SAMPLE: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VPRS_EVAL_ATTRIB_SNAPPED: (*pSupported = TRUE); break;
+       default: (*pSupported = FALSE); break;
     }
+    TRACE("(%p, %d, %p)\n", pDeviceOrContext, opCode, pSupported);
+
     return NVAPI_OK;
 }
 
@@ -1196,7 +1188,6 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
 	{0x01053fa5, NvAPI_GetInterfaceVersionString},
 	{0x1be0b8e5, NvAPI_GPU_GetBusId},
-	{0x2a0a350f, NvAPI_GPU_GetBusSlotId},
 	{0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
 	{0x0be17923, NvAPI_GPU_GetShaderSubPipeCount},
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
