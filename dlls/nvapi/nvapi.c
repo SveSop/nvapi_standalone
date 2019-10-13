@@ -30,7 +30,7 @@
 #include "winternl.h"
 #include "wine/debug.h"
 #include "wine/list.h"
-#include "nvapi.h"
+#include "nvapi_lite.h"
 #include "nvShaderExtnEnums.h"
 #include "d3d9.h"
 #include "d3d11.h"
@@ -739,30 +739,6 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
     return NVAPI_OK;
 }
 
-/* Get device IRQ from NVCtrl */
-static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pIRQ)
-{
-    int gpuirq, retcode = 0;
-    TRACE("(%p, %p)\n", hPhysicalGPU, pIRQ);
-
-    if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
-    {
-        FIXME("invalid handle: %p\n", hPhysicalGPU);
-        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
-    }
-    retcode = nvidia_settings_query_attribute_int("Irq", &gpuirq);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-    *pIRQ = gpuirq;
-    if (!pIRQ)
-      return NVAPI_INVALID_ARGUMENT;
-
-    return NVAPI_OK;
-}
-
 /* Get device and vendor id from nvml to create NVAPI PCI ID's */
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
 {
@@ -1194,7 +1170,6 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
 	{0x07f9b368, NvAPI_GPU_GetMemoryInfo},
-	{0xe4715417, NvAPI_GPU_GetIRQ},
 	{0xae457190, NvAPI_DISP_GetDisplayIdByDisplayName},
 	{0x5f68da40, NvAPI_D3D11_IsNvShaderExtnOpCodeSupported},
         {0xd22bdd7e, NvAPI_Unload},
