@@ -1502,6 +1502,12 @@ static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResou
     return NVAPI_ERROR;
 }
 
+static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetInfo(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIEInfo(void)
 {
     TRACE("()\n");
@@ -1509,6 +1515,72 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIEInfo(void)
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetShortName(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_SetRefreshRateOverride(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientFanCoolersGetStatus(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetPartitionCount(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetTotalTPCCount(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetTotalSPCount(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetTPCMask(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_PerfPoliciesGetInfo(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetPerfClocks(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_EnableDynamicPstates(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_PerfPoliciesGetStatus(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientFanCoolersGetInfo(void)
 {
     TRACE("()\n");
     return NVAPI_OK;
@@ -1822,6 +1894,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
 	{0xda141340, NvAPI_GPU_GetCoolerSettings},
 	{0xedcf624e, NvAPI_GPU_ClientPowerTopologyGetStatus},
+        {0xa4dfd3f2, NvAPI_GPU_ClientPowerTopologyGetInfo},
 	{0x70916171, NvAPI_GPU_ClientPowerPoliciesGetStatus},
 	{0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
 	{0x42aea16a, NvAPI_GPU_GetRamMaker},
@@ -1829,6 +1902,17 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
         {0x1bb18724, NvAPI_GPU_GetBusType},
 	{0xd048c3b1, NvAPI_GPU_GetCurrentPCIEDownstreamWidth},
+        {0x3092ac32, NvAPI_SetRefreshRateOverride},
+        {0xfa579a0f, NvAPI_GPU_EnableDynamicPstates},
+        {0xfb85b01e, NvAPI_GPU_ClientFanCoolersGetInfo},
+        {0x35aed5e8, NvAPI_GPU_ClientFanCoolersGetStatus},
+        {0x86f05d7a, NvAPI_GPU_GetPartitionCount},
+        {0x4e2f76a8, NvAPI_GPU_GetTotalTPCCount},
+        {0x4a35df54, NvAPI_GPU_GetTPCMask},
+        {0xb6d62591, NvAPI_GPU_GetTotalSPCount},
+        {0x409d9841, NvAPI_GPU_PerfPoliciesGetInfo},
+        {0x1ea54a3b, NvAPI_GPU_GetPerfClocks},
+        {0x3d358a0c, NvAPI_GPU_PerfPoliciesGetStatus},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);

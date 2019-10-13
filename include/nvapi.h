@@ -201,6 +201,16 @@ typedef struct {
 } NVAPI_GPU_POWER_TOPO;
 #define NVAPI_GPU_POWER_TOPO_VER MAKE_NVAPI_VERSION(NVAPI_GPU_POWER_TOPO,1)
 
+typedef struct {
+    NvU32 version;
+    NvU32 flags;
+    NvU32 unknown1;
+    NvU32 unknown2;
+    NvU32 unknown3;
+    NvU32 unknown4; 
+} NVAPI_GPU_POWER_TOPO_INFO;
+#define NVAPI_GPU_POWER_TOPO_INFO_VER MAKE_NVAPI_VERSION(NVAPI_GPU_POWER_TOPO_INFO,1)
+
 typedef struct
 {
     NvU32 version;
