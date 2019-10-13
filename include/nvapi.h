@@ -157,6 +157,50 @@ typedef struct
     }domain[NVAPI_MAX_GPU_PUBLIC_CLOCKS];
 } NV_GPU_CLOCK_FREQUENCIES_V1;
 
+typedef struct {
+    NvU32 version;
+    NvU32 flags;
+    struct
+    {
+        NvU32 pstate; // Assumption
+        NvU32 unknown1;
+        NvU32 unknown2;
+        NvU32 min_power;
+        NvU32 unknown3;
+        NvU32 unknown4;
+        NvU32 def_power;
+        NvU32 unknown5;
+        NvU32 unknown6;
+        NvU32 max_power;
+        NvU32 unknown7;
+    } entries[4];
+} NVAPI_GPU_POWER_INFO;
+#define NVAPI_GPU_POWER_INFO_VER MAKE_NVAPI_VERSION(NVAPI_GPU_POWER_INFO,1)
+
+typedef struct {
+    NvU32 version;
+    NvU32 flags;
+    struct {
+        NvU32 unknown1;
+        NvU32 unknown2;
+        NvU32 power; // percent * 1000
+        NvU32 unknown4;
+    } entries[4];
+} NVAPI_GPU_POWER_STATUS;
+#define NVAPI_GPU_POWER_STATUS_VER MAKE_NVAPI_VERSION(NVAPI_GPU_POWER_STATUS,1)
+
+typedef struct {
+    NvU32 version;
+    NvU32 count;
+    struct {
+        NvU32 id;
+        NvU32 unknown2;
+        NvU32 power;
+        NvU32 unknown4;
+    } entries[4];
+} NVAPI_GPU_POWER_TOPO;
+#define NVAPI_GPU_POWER_TOPO_VER MAKE_NVAPI_VERSION(NVAPI_GPU_POWER_TOPO,1)
+
 typedef struct
 {
     NvU32 version;
@@ -206,7 +250,7 @@ typedef struct {
     NvU32   bIsEditable:1;
     NvU32   reserved:31;
     NvU32   volt_uV;
-    int     voltDelta_uV;
+    NV_GPU_PERF_PSTATES20_PARAM_DELTA  voltDelta_uV;
 } NV_GPU_PSTATE20_BASE_VOLTAGE_ENTRY_V1;
 
 typedef struct
@@ -256,8 +300,24 @@ typedef struct
 
 typedef enum
 {
-    NVAPI_GPU_PERF_PSTATE_P0 = 0,
-    NVAPI_GPU_PERF_PSTATE_P1 = 1,
+    NVAPI_GPU_PERF_PSTATE_P0,
+    NVAPI_GPU_PERF_PSTATE_P1,
+    NVAPI_GPU_PERF_PSTATE_P2,
+    NVAPI_GPU_PERF_PSTATE_P3,
+    NVAPI_GPU_PERF_PSTATE_P4,
+    NVAPI_GPU_PERF_PSTATE_P5,
+    NVAPI_GPU_PERF_PSTATE_P6,
+    NVAPI_GPU_PERF_PSTATE_P7,
+    NVAPI_GPU_PERF_PSTATE_P8,
+    NVAPI_GPU_PERF_PSTATE_P9,
+    NVAPI_GPU_PERF_PSTATE_P10,
+    NVAPI_GPU_PERF_PSTATE_P11,
+    NVAPI_GPU_PERF_PSTATE_P12,
+    NVAPI_GPU_PERF_PSTATE_P13,
+    NVAPI_GPU_PERF_PSTATE_P14,
+    NVAPI_GPU_PERF_PSTATE_P15,
+    NVAPI_GPU_PERF_PSTATE_UNDEFINED,
+    NVAPI_GPU_PERF_PSTATE_ALL
 } NV_GPU_PERF_PSTATE_ID;
 
 typedef struct
@@ -274,15 +334,35 @@ typedef struct
        NvU32 reserved:31;
        NV_GPU_PSTATE20_CLOCK_ENTRY_V1 clocks[NVAPI_MAX_GPU_PSTATE20_CLOCKS];
        NV_GPU_PSTATE20_BASE_VOLTAGE_ENTRY_V1 baseVoltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
-    } pstates[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
+    } pstates[NVAPI_MAX_GPU_PSTATE20_PSTATES];
+} NV_GPU_PERF_PSTATES20_INFO_V1;
+
+typedef struct
+{
+    NvU32 version;
+    NvU32 bIsEditable:1;
+    NvU32 reserved:31;
+    NvU32 numPstates;
+    NvU32 numClocks;
+    NvU32 numBaseVoltages;
+       struct {
+       NV_GPU_PERF_PSTATE_ID pstateId;
+       NvU32 bIsEditable:1;
+       NvU32 reserved:31;
+       NV_GPU_PSTATE20_CLOCK_ENTRY_V1 clocks[NVAPI_MAX_GPU_PSTATE20_CLOCKS];
+       NV_GPU_PSTATE20_BASE_VOLTAGE_ENTRY_V1 baseVoltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
+    } pstates[NVAPI_MAX_GPU_PSTATE20_PSTATES];
        struct {
        NvU32 numVoltages;
        NV_GPU_PSTATE20_BASE_VOLTAGE_ENTRY_V1 voltages[NVAPI_MAX_GPU_PSTATE20_BASE_VOLTAGES];
     } ov;
 } NV_GPU_PERF_PSTATES20_INFO_V2;
 
-#define NV_GPU_PERF_PSTATES20_INFO_VER2 MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES20_INFO_V2, 2)
 typedef NV_GPU_PERF_PSTATES20_INFO_V2 NV_GPU_PERF_PSTATES20_INFO;
+#define NV_GPU_PERF_PSTATES20_INFO_VER1 MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES20_INFO_V1,1)
+#define NV_GPU_PERF_PSTATES20_INFO_VER2 MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES20_INFO_V2,2)
+#define NV_GPU_PERF_PSTATES20_INFO_VER3 MAKE_NVAPI_VERSION(NV_GPU_PERF_PSTATES20_INFO_V2,3)
+#define NV_GPU_PERF_PSTATES20_INFO_VER  NV_GPU_PERF_PSTATES20_INFO_VER3
 
 typedef enum
 {

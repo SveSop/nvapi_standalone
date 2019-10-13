@@ -23,7 +23,6 @@
 
 #include <ntdef.h>
 #include <windef.h>
-#include <apiset.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -287,7 +286,7 @@ typedef struct _PEB
     ULONG                        EnvironmentUpdateCount;            /* 028/050 */
     PVOID                        KernelCallbackTable;               /* 02c/058 */
     ULONG                        Reserved[2];                       /* 030/060 */
-    PAPI_SET_NAMESPACE_ARRAY     ApiSetMap;                         /* 038/068 */
+    PVOID /*PPEB_FREE_BLOCK*/    FreeList;                          /* 038/068 */
     ULONG                        TlsExpansionCounter;               /* 03c/070 */
     PRTL_BITMAP                  TlsBitmap;                         /* 040/078 */
     ULONG                        TlsBitmapBits[2];                  /* 044/080 */
@@ -358,10 +357,10 @@ typedef struct _TEB
     PVOID                        CsrClientThread;                   /* 03c/0070 */
     PVOID                        Win32ThreadInfo;                   /* 040/0078 */
     ULONG                        Win32ClientInfo[31];               /* 044/0080 used for user32 private data in Wine */
-    PVOID                        WOW32Reserved;                     /* 0c0/0100 used for ntdll syscall thunks */
+    PVOID                        WOW32Reserved;                     /* 0c0/0100 */
     ULONG                        CurrentLocale;                     /* 0c4/0108 */
     ULONG                        FpSoftwareStatusRegister;          /* 0c8/010c */
-    PVOID                        SystemReserved1[54];               /* 0cc/0110 used for krnl386.exe16 private data in Wine */
+    PVOID                        SystemReserved1[54];               /* 0cc/0110 used for kernel32 private data in Wine */
     LONG                         ExceptionCode;                     /* 1a4/02c0 */
     ACTIVATION_CONTEXT_STACK     ActivationContextStack;            /* 1a8/02c8 */
     BYTE                         SpareBytes1[24];                   /* 1bc/02e8 */
@@ -398,11 +397,11 @@ typedef struct _TEB
     PVOID                        WinSockData;                       /* f6c/1738 */
     ULONG                        GdiBatchCount;                     /* f70/1740 */
     ULONG                        Spare2;                            /* f74/1744 */
-    PVOID                        Spare3;                            /* f78/1748 used for fakedll thunks */
+    PVOID                        Spare3;                            /* f78/1748 */
     PVOID                        Spare4;                            /* f7c/1750 */
     PVOID                        ReservedForOle;                    /* f80/1758 */
     ULONG                        WaitingOnLoaderLock;               /* f84/1760 */
-    PVOID                        Reserved5[3];                      /* f88/1768 used for x86_64 OSX and wineserver shared memory */
+    PVOID                        Reserved5[3];                      /* f88/1768 */
     PVOID                       *TlsExpansionSlots;                 /* f94/1780 */
 #ifdef _WIN64
     PVOID                        DeallocationBStore;                /*    /1788 */
@@ -827,7 +826,7 @@ typedef enum _OBJECT_INFORMATION_CLASS {
     ObjectBasicInformation,
     ObjectNameInformation,
     ObjectTypeInformation,
-    ObjectTypesInformation,
+    ObjectAllInformation,
     ObjectDataInformation
 } OBJECT_INFORMATION_CLASS, *POBJECT_INFORMATION_CLASS;
 
@@ -1043,32 +1042,13 @@ typedef enum _MEMORY_INFORMATION_CLASS {
     MemoryBasicInformation,
     MemoryWorkingSetList,
     MemorySectionName,
-    MemoryBasicVlmInformation,
-    MemoryWorkingSetExInformation,
+    MemoryBasicVlmInformation
 } MEMORY_INFORMATION_CLASS;
 
 typedef struct _MEMORY_SECTION_NAME
 {
     UNICODE_STRING SectionFileName;
 } MEMORY_SECTION_NAME, *PMEMORY_SECTION_NAME;
-
-typedef union _MEMORY_WORKING_SET_EX_BLOCK {
-    ULONG_PTR Flags;
-    struct {
-        ULONG_PTR Valid : 1;
-        ULONG_PTR ShareCount : 3;
-        ULONG_PTR Win32Protection : 11;
-        ULONG_PTR Shared : 1;
-        ULONG_PTR Node : 6;
-        ULONG_PTR Locked : 1;
-        ULONG_PTR LargePage : 1;
-    } DUMMYSTRUCTNAME;
-} MEMORY_WORKING_SET_EX_BLOCK, *PMEMORY_WORKING_SET_EX_BLOCK;
-
-typedef struct _MEMORY_WORKING_SET_EX_INFORMATION {
-    PVOID                       VirtualAddress;
-    MEMORY_WORKING_SET_EX_BLOCK VirtualAttributes;
-} MEMORY_WORKING_SET_EX_INFORMATION, *PMEMORY_WORKING_SET_EX_INFORMATION;
 
 typedef enum _MUTANT_INFORMATION_CLASS
 {
@@ -1257,34 +1237,8 @@ typedef struct _OBJECT_NAME_INFORMATION {
 
 typedef struct __OBJECT_TYPE_INFORMATION {
     UNICODE_STRING TypeName;
-    ULONG TotalNumberOfObjects;
-    ULONG TotalNumberOfHandles;
-    ULONG TotalPagedPoolUsage;
-    ULONG TotalNonPagedPoolUsage;
-    ULONG TotalNamePoolUsage;
-    ULONG TotalHandleTableUsage;
-    ULONG HighWaterNumberOfObjects;
-    ULONG HighWaterNumberOfHandles;
-    ULONG HighWaterPagedPoolUsage;
-    ULONG HighWaterNonPagedPoolUsage;
-    ULONG HighWaterNamePoolUsage;
-    ULONG HighWaterHandleTableUsage;
-    ULONG InvalidAttributes;
-    GENERIC_MAPPING GenericMapping;
-    ULONG ValidAccessMask;
-    BOOLEAN SecurityRequired;
-    BOOLEAN MaintainHandleCount;
-    UCHAR TypeIndex;
-    CHAR Reserved;
-    ULONG PoolType;
-    ULONG DefaultPagedPoolCharge;
-    ULONG DefaultNonPagedPoolCharge;
+    ULONG Reserved [22];
 } OBJECT_TYPE_INFORMATION, *POBJECT_TYPE_INFORMATION;
-
-typedef struct _OBJECT_TYPES_INFORMATION
-{
-    ULONG NumberOfTypes;
-} OBJECT_TYPES_INFORMATION, *POBJECT_TYPES_INFORMATION;
 
 typedef struct _PROCESS_BASIC_INFORMATION {
 #ifdef __WINESRC__
@@ -1516,27 +1470,6 @@ typedef struct _SYSTEM_HANDLE_INFORMATION {
     ULONG               Count;
     SYSTEM_HANDLE_ENTRY Handle[1];
 } SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
-
-/* System Information Class 0x40 */
-
-typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX
-{
-    PVOID     Object;
-    ULONG_PTR UniqueProcessId;
-    ULONG_PTR HandleValue;
-    ULONG     GrantedAccess;
-    USHORT    CreatorBackTraceIndex;
-    USHORT    ObjectTypeIndex;
-    ULONG     HandleAttributes;
-    ULONG     Reserved;
-} SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX, *PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX;
-
-typedef struct _SYSTEM_HANDLE_INFORMATION_EX
-{
-    ULONG_PTR  Count;
-    ULONG_PTR  Reserved;
-    SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX Handle[1];
-} SYSTEM_HANDLE_INFORMATION_EX, *PSYSTEM_HANDLE_INFORMATION_EX;
 
 /* System Information Class 0x15 */
 
@@ -2171,11 +2104,11 @@ typedef struct _DIRECTORY_BASIC_INFORMATION {
 } DIRECTORY_BASIC_INFORMATION, *PDIRECTORY_BASIC_INFORMATION;
 
 typedef struct _INITIAL_TEB {
-  PVOID StackBase;
-  PVOID StackLimit;
-  PVOID StackCommit;
-  PVOID StackCommitMax;
-  PVOID StackReserved;
+    void *OldStackBase;
+    void *OldStackLimit;
+    void *StackBase;
+    void *StackLimit;
+    void *DeallocationStack;
 } INITIAL_TEB, *PINITIAL_TEB;
 
 typedef enum _PORT_INFORMATION_CLASS {
@@ -2246,31 +2179,6 @@ typedef enum _SYSDBG_COMMAND {
   SysDbgWriteBusData
 } SYSDBG_COMMAND, *PSYSDBG_COMMAND;
 
-#define PS_ATTRIBUTE_THREAD  0x00010000
-#define PS_ATTRIBUTE_INPUT   0x00020000
-#define PS_ATTRIBUTE_UNKNOWN 0x00040000
-
-typedef enum _PS_ATTRIBUTE_NUM {
-    PsAttributeClientId = 3,
-} PS_ATTRIBUTE_NUM;
-
-#define PS_ATTRIBUTE_CLIENT_ID (PsAttributeClientId | PS_ATTRIBUTE_THREAD)
-
-typedef struct _PS_ATTRIBUTE {
-    ULONG Attribute;
-    SIZE_T Size;
-    union {
-        ULONG Value;
-        PVOID ValuePtr;
-    };
-    PSIZE_T ReturnLength;
-} PS_ATTRIBUTE;
-
-typedef struct _PS_ATTRIBUTE_LIST {
-    SIZE_T TotalLength;
-    PS_ATTRIBUTE Attributes[1];
-} PS_ATTRIBUTE_LIST, *PPS_ATTRIBUTE_LIST;
-
 
 /*************************************************************************
  * Loader structures
@@ -2290,19 +2198,10 @@ typedef struct _LDR_MODULE
     ULONG               Flags;
     SHORT               LoadCount;
     SHORT               TlsIndex;
-    LIST_ENTRY          HashLinks;
+    HANDLE              SectionHandle;
+    ULONG               CheckSum;
     ULONG               TimeDateStamp;
     HANDLE              ActivationContext;
-    PVOID               PatchInformation;
-    LIST_ENTRY          ForwarderLinks;
-    LIST_ENTRY          ServiceTagLinks;
-    LIST_ENTRY          StaticLinks;
-    PVOID               ContextInformation;
-    ULONG_PTR           OriginalBase;
-    LARGE_INTEGER       LoadTime;
-
-    /* Not part of Win7 but used by Wine */
-    HANDLE              SectionHandle;
 } LDR_MODULE, *PLDR_MODULE;
 
 typedef struct _LDR_DLL_LOADED_NOTIFICATION_DATA
@@ -2469,7 +2368,6 @@ NTSYSAPI NTSTATUS  WINAPI NtDuplicateToken(HANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES
 NTSYSAPI NTSTATUS  WINAPI NtEnumerateKey(HANDLE,ULONG,KEY_INFORMATION_CLASS,void *,DWORD,DWORD *);
 NTSYSAPI NTSTATUS  WINAPI NtEnumerateValueKey(HANDLE,ULONG,KEY_VALUE_INFORMATION_CLASS,PVOID,ULONG,PULONG);
 NTSYSAPI NTSTATUS  WINAPI NtExtendSection(HANDLE,PLARGE_INTEGER);
-NTSYSAPI NTSTATUS  WINAPI NtFilterToken(HANDLE,ULONG,TOKEN_GROUPS*,TOKEN_PRIVILEGES*,TOKEN_GROUPS*,HANDLE*);
 NTSYSAPI NTSTATUS  WINAPI NtFindAtom(const WCHAR*,ULONG,RTL_ATOM*);
 NTSYSAPI NTSTATUS  WINAPI NtFlushBuffersFile(HANDLE,IO_STATUS_BLOCK*);
 NTSYSAPI NTSTATUS  WINAPI NtFlushInstructionCache(HANDLE,LPCVOID,SIZE_T);
@@ -2527,7 +2425,7 @@ NTSYSAPI NTSTATUS  WINAPI NtPrivilegeCheck(HANDLE,PPRIVILEGE_SET,PBOOLEAN);
 NTSYSAPI NTSTATUS  WINAPI NtPrivilegeObjectAuditAlarm(PUNICODE_STRING,HANDLE,HANDLE,ULONG,PPRIVILEGE_SET,BOOLEAN);
 NTSYSAPI NTSTATUS  WINAPI NtPrivilegedServiceAuditAlarm(PUNICODE_STRING,PUNICODE_STRING,HANDLE,PPRIVILEGE_SET,BOOLEAN);
 NTSYSAPI NTSTATUS  WINAPI NtProtectVirtualMemory(HANDLE,PVOID*,SIZE_T*,ULONG,ULONG*);
-NTSYSAPI NTSTATUS  WINAPI NtPulseEvent(HANDLE,PULONG);
+NTSYSAPI NTSTATUS  WINAPI NtPulseEvent(HANDLE,LONG*);
 NTSYSAPI NTSTATUS  WINAPI NtQueueApcThread(HANDLE,PNTAPCFUNC,ULONG_PTR,ULONG_PTR,ULONG_PTR);
 NTSYSAPI NTSTATUS  WINAPI NtQueryAttributesFile(const OBJECT_ATTRIBUTES*,FILE_BASIC_INFORMATION*);
 NTSYSAPI NTSTATUS  WINAPI NtQueryDefaultLocale(BOOLEAN,LCID*);
@@ -2587,7 +2485,7 @@ NTSYSAPI NTSTATUS  WINAPI NtReplyWaitReceivePortEx(HANDLE,PVOID*,PPORT_MESSAGE,P
 NTSYSAPI NTSTATUS  WINAPI NtReplyWaitReplyPort(HANDLE,PLPC_MESSAGE);
 NTSYSAPI NTSTATUS  WINAPI NtRequestPort(HANDLE,PLPC_MESSAGE);
 NTSYSAPI NTSTATUS  WINAPI NtRequestWaitReplyPort(HANDLE,PLPC_MESSAGE,PLPC_MESSAGE);
-NTSYSAPI NTSTATUS  WINAPI NtResetEvent(HANDLE,PULONG);
+NTSYSAPI NTSTATUS  WINAPI NtResetEvent(HANDLE,LONG*);
 NTSYSAPI NTSTATUS  WINAPI NtResetWriteWatch(HANDLE,PVOID,SIZE_T);
 NTSYSAPI NTSTATUS  WINAPI NtRestoreKey(HANDLE,HANDLE,ULONG);
 NTSYSAPI NTSTATUS  WINAPI NtResumeThread(HANDLE,PULONG);
@@ -2598,7 +2496,7 @@ NTSYSAPI NTSTATUS  WINAPI NtSetDefaultHardErrorPort(HANDLE);
 NTSYSAPI NTSTATUS  WINAPI NtSetDefaultLocale(BOOLEAN,LCID);
 NTSYSAPI NTSTATUS  WINAPI NtSetDefaultUILanguage(LANGID);
 NTSYSAPI NTSTATUS  WINAPI NtSetEaFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG);
-NTSYSAPI NTSTATUS  WINAPI NtSetEvent(HANDLE,PULONG);
+NTSYSAPI NTSTATUS  WINAPI NtSetEvent(HANDLE,LONG*);
 NTSYSAPI NTSTATUS  WINAPI NtSetHighEventPair(HANDLE);
 NTSYSAPI NTSTATUS  WINAPI NtSetHighWaitLowEventPair(HANDLE);
 NTSYSAPI NTSTATUS  WINAPI NtSetHighWaitLowThread(VOID);
@@ -2720,6 +2618,7 @@ NTSYSAPI BOOLEAN   WINAPI RtlCreateUnicodeString(PUNICODE_STRING,LPCWSTR);
 NTSYSAPI BOOLEAN   WINAPI RtlCreateUnicodeStringFromAsciiz(PUNICODE_STRING,LPCSTR);
 NTSYSAPI NTSTATUS  WINAPI RtlCreateUserProcess(UNICODE_STRING*,ULONG,RTL_USER_PROCESS_PARAMETERS*,SECURITY_DESCRIPTOR*,SECURITY_DESCRIPTOR*,HANDLE,BOOLEAN,HANDLE,HANDLE,RTL_USER_PROCESS_INFORMATION*);
 NTSYSAPI NTSTATUS  WINAPI RtlCreateUserThread(HANDLE,SECURITY_DESCRIPTOR*,BOOLEAN,PVOID,SIZE_T,SIZE_T,PRTL_THREAD_START_ROUTINE,void*,HANDLE*,CLIENT_ID*);
+NTSYSAPI NTSTATUS  WINAPI RtlCreateUserStack(SIZE_T,SIZE_T,ULONG,SIZE_T,SIZE_T,INITIAL_TEB*);
 NTSYSAPI void      WINAPI RtlDeactivateActivationContext(DWORD,ULONG_PTR);
 NTSYSAPI PVOID     WINAPI RtlDecodePointer(PVOID);
 NTSYSAPI NTSTATUS  WINAPI RtlDecompressBuffer(USHORT,PUCHAR,ULONG,PUCHAR,ULONG,PULONG);
@@ -2793,6 +2692,7 @@ NTSYSAPI void      WINAPI RtlFreeOemString(POEM_STRING);
 NTSYSAPI DWORD     WINAPI RtlFreeSid(PSID);
 NTSYSAPI void      WINAPI RtlFreeThreadActivationContextStack(void);
 NTSYSAPI void      WINAPI RtlFreeUnicodeString(PUNICODE_STRING);
+NTSYSAPI void      WINAPI RtlFreeUserStack(void*);
 NTSYSAPI NTSTATUS  WINAPI RtlGetAce(PACL,DWORD,LPVOID *);
 NTSYSAPI NTSTATUS  WINAPI RtlGetActiveActivationContext(HANDLE*);
 NTSYSAPI NTSTATUS  WINAPI RtlGetCompressionWorkSpaceSize(USHORT,PULONG,PULONG);
@@ -2812,6 +2712,7 @@ NTSYSAPI NTSTATUS  WINAPI RtlGetOwnerSecurityDescriptor(PSECURITY_DESCRIPTOR,PSI
 NTSYSAPI ULONG     WINAPI RtlGetProcessHeaps(ULONG,HANDLE*);
 NTSYSAPI DWORD     WINAPI RtlGetThreadErrorMode(void);
 NTSYSAPI NTSTATUS  WINAPI RtlGetSaclSecurityDescriptor(PSECURITY_DESCRIPTOR,PBOOLEAN,PACL *,PBOOLEAN);
+NTSYSAPI LONGLONG  WINAPI RtlGetSystemTimePrecise(void);
 NTSYSAPI NTSTATUS  WINAPI RtlGetVersion(RTL_OSVERSIONINFOEXW*);
 NTSYSAPI NTSTATUS  WINAPI RtlGUIDFromString(PUNICODE_STRING,GUID*);
 NTSYSAPI PSID_IDENTIFIER_AUTHORITY WINAPI RtlIdentifierAuthoritySid(PSID);
@@ -2987,6 +2888,8 @@ NTSYSAPI NTSTATUS  WINAPI RtlpWaitForCriticalSection(RTL_CRITICAL_SECTION *);
 NTSYSAPI NTSTATUS  WINAPI RtlpUnWaitCriticalSection(RTL_CRITICAL_SECTION *);
 NTSYSAPI NTSTATUS  WINAPI vDbgPrintEx(ULONG,ULONG,LPCSTR,__ms_va_list);
 NTSYSAPI NTSTATUS  WINAPI vDbgPrintExWithPrefix(LPCSTR,ULONG,ULONG,LPCSTR,__ms_va_list);
+
+NTSYSAPI int __cdecl _strnicmp(LPCSTR,LPCSTR,size_t);
 
 /* 32-bit only functions */
 

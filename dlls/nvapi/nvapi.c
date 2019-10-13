@@ -31,6 +31,7 @@
 #include "wine/debug.h"
 #include "wine/list.h"
 #include "nvapi.h"
+#include "nvShaderExtnEnums.h"
 #include "d3d9.h"
 #include "d3d11.h"
 #include "dxvk.h"
@@ -399,12 +400,6 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     char szName[NVAPI_SHORT_STRING_MAX];
     TRACE("(%p, %p)\n", hNvDisplay, pVersion);
 
-    if (hNvDisplay && hNvDisplay != FAKE_DISPLAY)
-    {
-        FIXME("invalid display handle: %p\n", hNvDisplay);
-        return NVAPI_INVALID_HANDLE;
-    }
-
     /* Return driver version */
     pVersion->version = NV_DISPLAY_DRIVER_VERSION_VER;
     pVersion->bldChangeListNum = 0;
@@ -627,6 +622,21 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu
     return NVAPI_OK;
 }
 
+static NvAPI_Status CDECL NvAPI_DISP_GetDisplayIdByDisplayName(NvDisplayHandle *pNvDispHandle, NvU32* displayId)
+{
+    TRACE("(%p, %p)\n", pNvDispHandle, displayId);
+
+    if (!displayId)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (!pNvDispHandle)
+        return NVAPI_INVALID_ARGUMENT;
+
+    *displayId = FAKE_DISPLAY_ID;
+
+    return NVAPI_OK;
+}
+
 static NvAPI_Status CDECL NvAPI_DISP_GetGDIPrimaryDisplayId(NvU32* displayId)
 {
     TRACE("(%p)\n", displayId);
@@ -728,7 +738,7 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
     if (!pLogicalGPU)
         return NVAPI_INVALID_POINTER;
 
-    if (hNvDisp && hNvDisp != FAKE_DISPLAY)
+    if (!hNvDisp && hNvDisp != FAKE_DISPLAY)
         return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
 
     *pLogicalGPU = FAKE_LOGICAL_GPU;
@@ -739,8 +749,6 @@ static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp
 static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvDisplayHandle hNvDisp, NV_ACTIVE_APP *pActiveApps, NvU32 *pTotal)
 {
     TRACE("(%p, %p, %p)\n", hNvDisp, pActiveApps, pTotal);
-    if (hNvDisp && hNvDisp != FAKE_DISPLAY)
-        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
     pActiveApps[0].processPID = 1000;				/* Fake PID of app			*/
     strcpy(pActiveApps[0].processName, "Wine Desktop.exe");	/* Fake appname				*/
     *pTotal = 1;						/* Total number of active 3D apps	*/
@@ -767,7 +775,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
 
     for (clock = 0; clock < NVAPI_MAX_GPU_PUBLIC_CLOCKS; ++clock)
     {
-        pClkFreqs->domain[clock].bIsPresent = 0;
+        pClkFreqs->domain[clock].bIsPresent = FALSE;
         pClkFreqs->domain[clock].frequency = 0;
     }
 
@@ -791,7 +799,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
     if (rc != NVML_SUCCESS)
     {
-        WARN("NVML failed to query graphics clock: error %u\n", rc);
+        WARN("NVML failed to query graphics clock: error %u id: %u\n", rc, clockId);
     }
     else
     {
@@ -803,7 +811,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
     if (rc != NVML_SUCCESS)
     {
-        WARN("NVML failed to query memory clock: error %u\n", rc);
+        WARN("NVML failed to query memory clock: error %u id: %u\n", rc, clockId);
     }
     else
     {
@@ -811,6 +819,41 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
         pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency = clock_MHz * 1000;
         TRACE("Memory clock: %u MHz\n", clock_MHz);
     }
+
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetInfo(NvPhysicalGpuHandle hPhysicalGPU, NVAPI_GPU_POWER_INFO *pInfo)
+{
+    TRACE("(%p, %p)\n", hPhysicalGPU, pInfo);
+    pInfo->version = NVAPI_GPU_POWER_INFO_VER;
+    pInfo->flags = 0x101;
+    pInfo->entries[0].pstate = 0x0;
+    pInfo->entries[0].min_power = 0xc350;
+    pInfo->entries[0].def_power = 0x186a0;
+    pInfo->entries[0].max_power = 0x1adb0;
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetStatus(NvPhysicalGpuHandle hPhysicalGPU, NVAPI_GPU_POWER_STATUS *pPolicies)
+{
+    TRACE("(%p, %p)\n", hPhysicalGPU, pPolicies);
+    pPolicies->version = NVAPI_GPU_POWER_STATUS_VER;
+    pPolicies->flags = 0x1;
+    pPolicies->entries[0].power = 0x186a0;			// This is target TDP.
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetStatus(NvPhysicalGpuHandle hPhysicalGPU, NVAPI_GPU_POWER_TOPO *topo)
+{
+    TRACE("(%p, %p)\n", hPhysicalGPU, topo);
+
+    topo->version = NVAPI_GPU_POWER_TOPO_VER;
+    topo->count = 0x2;
+    topo->entries[0].id = 0x0;
+    topo->entries[0].power = 0x4e20;				// Current TDP
+    topo->entries[1].id = 0x1;
+    topo->entries[1].power = 0x4e20;				// Unknown?
 
     return NVAPI_OK;
 }
@@ -844,13 +887,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     if (!pPstatesInfo)
         return NVAPI_INVALID_ARGUMENT;
 
-    pPstatesInfo->version = NV_GPU_PERF_PSTATES20_INFO_VER2;
-    pPstatesInfo->numPstates = 1;
+    pPstatesInfo->version = NV_GPU_PERF_PSTATES20_INFO_VER1;
+    pPstatesInfo->numPstates = 4;
     pPstatesInfo->numClocks = 2;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = get_nvidia_perflevel();			/* Pstate from nvml */
     pPstatesInfo->pstates[0].reserved = 0;					/* These bits are reserved for future use (must be always 0) ref. NV Docs */
     pPstatesInfo->ov.numVoltages = 1;
+    TRACE("GPU pstate: %u\n", pPstatesInfo->pstates[0].pstateId);
 
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
     if (rc != NVML_SUCCESS)
@@ -860,7 +904,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     else
     {
     pPstatesInfo->pstates[0].clocks[0].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
+    pPstatesInfo->pstates[0].clocks[0].data.range.minFreq_kHz = 500000;
+    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = 1500000;
+    pPstatesInfo->pstates[0].clocks[0].data.range.domainId = 0;
+    pPstatesInfo->pstates[0].clocks[0].data.range.minVoltage_uV = 1200;
+    pPstatesInfo->pstates[0].clocks[0].data.range.maxVoltage_uV = 1400;
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
+    pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.valueRange.mindelta = -1000000;	/* Min OC */
+    pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.valueRange.maxdelta = 1000000;	/* Max OC */
     TRACE("Graphics clock: %u MHz\n", clock_MHz);
     }
 
@@ -872,7 +923,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     else
     {
     pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" memory clock */
+    pPstatesInfo->pstates[0].clocks[1].data.range.minFreq_kHz = 500000;
+    pPstatesInfo->pstates[0].clocks[1].data.range.maxFreq_kHz = 1500000;
+    pPstatesInfo->pstates[0].clocks[1].data.range.domainId = 1;
+    pPstatesInfo->pstates[0].clocks[1].data.range.minVoltage_uV = 1200;
+    pPstatesInfo->pstates[0].clocks[1].data.range.maxVoltage_uV = 1400;
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
+    pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.valueRange.mindelta = -500000;	/* Min OC */
+    pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.valueRange.maxdelta = 500000;	/* Max OC */
     TRACE("Memory clock: %u MHz\n", clock_MHz);
     }
 
@@ -1090,7 +1148,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU
     return NVAPI_OK;
 }
 
-/* Get device and vendor id from NVCtrl to create NVAPI PCI ID's */
+/* Get device and vendor id from nvml to create NVAPI PCI ID's */
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
 {
     nvmlReturn_t rc = NVML_SUCCESS;
@@ -1113,7 +1171,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
     *pDeviceId = pci.pciDeviceId; 				/* Device and vendor ID 		*/
     *pSubSystemId = pci.pciSubSystemId;				/* Subsystem ID (board manufacturer) 	*/
     *pRevisionId = 161;						/* Rev A1 				*/
-    TRACE("Device ID: %u, SubSysID: %u\n", pci.pciDeviceId, pci.pciSubSystemId);
+    TRACE("Device ID: %u, SubSysID: %u, RevisionID: %p\n", pci.pciDeviceId, pci.pciSubSystemId, pRevisionId);
     }
     return NVAPI_OK;
 }
@@ -1266,12 +1324,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
     rc = nvmlDeviceGetPciInfo(g_nvml.device, &pci);
     if (rc != NVML_SUCCESS)
     {
-        WARN("NVML failed to query device ID: error %u\n", rc);
+        WARN("NVML failed to query BUSID: error %u\n", rc);
     }
     else
     {
     *pBusId = pci.bus;
-    TRACE("PCI Bus ID: %d\n", pci.bus);
+    TRACE("PCI Bus ID: %p\n", pBusId);
     }
     if (!pBusId)
       return NVAPI_INVALID_ARGUMENT;
@@ -1444,24 +1502,6 @@ static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResou
     return NVAPI_ERROR;
 }
 
-static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetStatus(void)
-{
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetStatus(void)
-{
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
-}
-
-static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetInfo(void)
-{
-    TRACE("()\n");
-    return NVAPI_NOT_SUPPORTED;
-}
-
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIEInfo(void)
 {
     TRACE("()\n");
@@ -1620,6 +1660,35 @@ static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrCont
     return NVAPI_OK;
 }
 
+static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pDeviceOrContext, NvU32 opCode, BOOL *pSupported)
+{
+    if (!pDeviceOrContext)
+        return NVAPI_INVALID_ARGUMENT;
+
+/* This requires some experimentation. This is HSLS shader extension support for the adapter */
+
+    switch(opCode){
+       case NV_EXTN_OP_SHFL: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_SHFL_UP: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_SHFL_DOWN: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_SHFL_XOR: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VOTE_ALL: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VOTE_ANY: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VOTE_BALLOT: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_GET_LANE_ID: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_FP16_ATOMIC: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_FP32_ATOMIC: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_UINT64_ATOMIC: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_GET_SHADING_RATE: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VPRS_EVAL_ATTRIB_AT_SAMPLE: (*pSupported = TRUE); break;
+       case NV_EXTN_OP_VPRS_EVAL_ATTRIB_SNAPPED: (*pSupported = TRUE); break;
+       default: (*pSupported = FALSE); break;
+    }
+    TRACE("(%p, %d, %p)\n", pDeviceOrContext, opCode, pSupported);
+
+    return NVAPI_OK;
+}
+
 static NVAPI_DEVICE_FEATURE_LEVEL translate_feature_level(D3D_FEATURE_LEVEL level_d3d)
 {
     switch (level_d3d)
@@ -1748,6 +1817,8 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
 	{0xc33baeb1, NvAPI_GPU_GetGPUType},
 	{0x189a1fdf, NvAPI_GPU_GetUsages},
 	{0xe4715417, NvAPI_GPU_GetIRQ},
+	{0xae457190, NvAPI_DISP_GetDisplayIdByDisplayName},
+	{0x5f68da40, NvAPI_D3D11_IsNvShaderExtnOpCodeSupported},
 	{0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
 	{0xda141340, NvAPI_GPU_GetCoolerSettings},
 	{0xedcf624e, NvAPI_GPU_ClientPowerTopologyGetStatus},
