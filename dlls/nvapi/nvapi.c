@@ -994,7 +994,7 @@ static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrCont
     TRACE("(%p, %u, %f, %f): dxvk\n", pDeviceOrContext, bEnable, fMinDepth, fMaxDepth);
 
     if (!pDeviceOrContext)
-        return NVAPI_INVALID_ARGUMENT;
+        return NVAPI_INVALID_POINTER;
 
     if (0 > fMinDepth || fMinDepth > fMaxDepth || fMaxDepth > 1)
     {
@@ -1036,7 +1036,7 @@ static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrCont
 static NvAPI_Status CDECL NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(IUnknown *pDeviceOrContext, NvU32 opCode, BOOL *pSupported)
 {
     if (!pDeviceOrContext)
-        return NVAPI_INVALID_ARGUMENT;
+        return NVAPI_INVALID_POINTER;
 
 /* This requires some experimentation. This is HSLS shader extension support for the adapter */
 
