@@ -832,6 +832,7 @@ static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetInfo(NvPhysicalGpuHand
     pInfo->entries[0].min_power = 0xc350;
     pInfo->entries[0].def_power = 0x186a0;
     pInfo->entries[0].max_power = 0x1adb0;
+    // Not yet implemented - Fake values for testing
     return NVAPI_OK;
 }
 
@@ -841,6 +842,7 @@ static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetStatus(NvPhysicalGpuHa
     pPolicies->version = NVAPI_GPU_POWER_STATUS_VER;
     pPolicies->flags = 0x1;
     pPolicies->entries[0].power = 0x186a0;			// This is target TDP.
+    // Not yet implemented - Fake values for testing
     return NVAPI_OK;
 }
 
@@ -854,7 +856,7 @@ static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetStatus(NvPhysicalGpuHa
     topo->entries[0].power = 0x4e20;				// Current TDP
     topo->entries[1].id = 0x1;
     topo->entries[1].power = 0x4e20;				// Unknown?
-
+    // Not yet implemented - Fake values for testing
     return NVAPI_OK;
 }
 
@@ -1094,7 +1096,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetSystemType(NvPhysicalGpuHandle hPhysicalG
     return NVAPI_OK;
 }
 
-/* Get nVidia BIOS Version from NVCtrl */
+/* Get nVidia BIOS Version from nvml */
 static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGPU, NvAPI_ShortString szBiosRevision)
 {
     nvmlReturn_t rc = NVML_SUCCESS;
@@ -1124,7 +1126,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
     return NVAPI_OK;
 }
 
-/* Get device IRQ from NVCtrl */
+/* Get device IRQ from nvml */
 static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pIRQ)
 {
     int gpuirq, retcode = 0;
@@ -1415,7 +1417,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
     pMemoryInfo->version = NV_DISPLAY_DRIVER_MEMORY_INFO_V3_VER;
     pMemoryInfo->dedicatedVideoMemory = get_video_memory_total();		/* Report total vram as dedicated vram */
     pMemoryInfo->availableDedicatedVideoMemory = get_video_memory_total();	/* Get available dedicated vram */
-    pMemoryInfo->sharedSystemMemory = get_video_memory_total();			/* Caclulate possible virtual vram */
+    pMemoryInfo->sharedSystemMemory = get_video_memory_total();			/* Calculate possible virtual vram */
     pMemoryInfo->curAvailableDedicatedVideoMemory = get_video_memory_free();	/* Calculate available vram */
 
     if (!pMemoryInfo)
@@ -1431,7 +1433,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu,
     if (!hPhysicalGpu)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    *pRamType = 8;				/* No similar function in NVCtrl, so "type = 8" is GDDR5 */
+    *pRamType = 8;				/* No similar function in nvml, so "type = 8" is GDDR5 */
     return NVAPI_OK;
 }
 
@@ -1442,7 +1444,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamMaker(NvPhysicalGpuHandle hPhysicalGpu
     if (!hPhysicalGpu)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    *pRamMaker = 0;                              /* Undocumented function. NVCtrl cannot get brand/maker. 0 = "unknown" */
+    *pRamMaker = 0;                              /* Undocumented function. nvml cannot get brand/maker. 0 = "unknown" */
     return NVAPI_OK;
 }
 
@@ -1480,11 +1482,11 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysi
     pCoolerInfo->cooler[0].defaultMaxLevel = 100;
     pCoolerInfo->cooler[0].currentMinLevel = 0;
     pCoolerInfo->cooler[0].currentMaxLevel = 100;
-    pCoolerInfo->cooler[0].currentLevel = fanlevel;		/* Fan level in % from NVCtrl */
+    pCoolerInfo->cooler[0].currentLevel = fanlevel;		/* Fan level in % from nvidia-settings */
     pCoolerInfo->cooler[0].defaultPolicy = 0;
     pCoolerInfo->cooler[0].currentPolicy = 0;
     pCoolerInfo->cooler[0].target = 1;				/* GPU */
-    pCoolerInfo->cooler[0].controlType = controltype;		/* Cooler Control type from NVCtrl */
+    pCoolerInfo->cooler[0].controlType = controltype;		/* Cooler Control type from nvidia-settings */
     pCoolerInfo->cooler[0].active = 1;
     TRACE("Fanlevel: %d, type: %d\n", fanlevel, controltype);
     return NVAPI_OK;
@@ -1616,6 +1618,13 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
     TRACE("()\n");
     return NVAPI_OK;
 }
+
+static NvAPI_Status CDECL NvAPI_GPU_GetCurrentVoltage(void)
+{
+    TRACE("()\n");
+    return NVAPI_OK;
+}
+
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSize)
 {
@@ -1913,6 +1922,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x409d9841, NvAPI_GPU_PerfPoliciesGetInfo},
         {0x1ea54a3b, NvAPI_GPU_GetPerfClocks},
         {0x3d358a0c, NvAPI_GPU_PerfPoliciesGetStatus},
+        {0x465f9bcf, NvAPI_GPU_GetCurrentVoltage},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
