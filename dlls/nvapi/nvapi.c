@@ -984,6 +984,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
     return NVAPI_OK;
 }
 
+/* This is intended for use with DXVK d3d11 -> Vulkan library. May cause slowdowns when using wined3d */
 static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrContext, NvU32 bEnable, float fMinDepth, float fMaxDepth)
 {
     ID3D11Device *d3d11_device;
@@ -1158,20 +1159,20 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x46fbeb03, NvAPI_GPU_GetPhysicalFrameBufferSize},
         {0x5a04b644, NvAPI_GPU_GetVirtualFrameBufferSize},
         {0xc7026a87, NvAPI_GPU_GetGpuCoreCount},
-	{0x1890e8da, NvAPI_GetPhysicalGPUFromDisplay},
-	{0x7a4174f4, NvAPI_GPU_PhysxQueryRecommendedState},
-	{0x35B5fd2f, NvAPI_GPU_GetTargetID},
-	{0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
-	{0x01053fa5, NvAPI_GetInterfaceVersionString},
-	{0x1be0b8e5, NvAPI_GPU_GetBusId},
-	{0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
-	{0x0be17923, NvAPI_GPU_GetShaderSubPipeCount},
+        {0x1890e8da, NvAPI_GetPhysicalGPUFromDisplay},
+        {0x7a4174f4, NvAPI_GPU_PhysxQueryRecommendedState},
+        {0x35B5fd2f, NvAPI_GPU_GetTargetID},
+        {0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
+        {0x01053fa5, NvAPI_GetInterfaceVersionString},
+        {0x1be0b8e5, NvAPI_GPU_GetBusId},
+        {0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
+        {0x0be17923, NvAPI_GPU_GetShaderSubPipeCount},
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
-	{0x07f9b368, NvAPI_GPU_GetMemoryInfo},
-	{0xae457190, NvAPI_DISP_GetDisplayIdByDisplayName},
-	{0x5f68da40, NvAPI_D3D11_IsNvShaderExtnOpCodeSupported},
+        {0x07f9b368, NvAPI_GPU_GetMemoryInfo},
+        {0xae457190, NvAPI_DISP_GetDisplayIdByDisplayName},
+        {0x5f68da40, NvAPI_D3D11_IsNvShaderExtnOpCodeSupported},
         {0xd22bdd7e, NvAPI_Unload},
     };
     unsigned int i;
