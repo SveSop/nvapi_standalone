@@ -293,7 +293,7 @@ static int get_video_memory_total(void)
 
     rc = nvmlDeviceGetMemoryInfo(g_nvml.device, &memory);
     if (rc != NVML_SUCCESS)
-        TRACE("XNVCTRLQueryTargetAttribute(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
+        TRACE("(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
 
     if (memory.total == 0)
         memory.total = 1024 * 1024 * 1024; /* fallback: 1GB */
@@ -311,7 +311,7 @@ static int get_video_memory_free(void)
 
     rc = nvmlDeviceGetMemoryInfo(g_nvml.device, &memory);
     if (rc != NVML_SUCCESS)
-        TRACE("XNVCTRLQueryTargetAttribute(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
+        TRACE("(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
 
     if (memory.free == 0)
         memory.free = 1024 * 1024 * 1024; /* fallback: 1GB */
@@ -1077,7 +1077,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle 
     pVoltStatus->flags = 0;
     pVoltStatus->count = 1;
     pVoltStatus->value_uV = 0;				/* Cannot verify value at this point */
-    pVoltStatus->buf1 = 1;
+    pVoltStatus->buf1 = 1;                              /* For testing currently             */
     return NVAPI_OK;
 }
 
@@ -1126,7 +1126,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
     return NVAPI_OK;
 }
 
-/* Get device IRQ from nvml */
+/* Get device IRQ from nvidia-settings */
 static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pIRQ)
 {
     int gpuirq, retcode = 0;
@@ -1425,7 +1425,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
     return NVAPI_OK;
 }
 
-/* Set "RamType" to GDDR5 */
+/* Set "RamType" to GDDR6 */
 static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pRamType)
 {
     TRACE("(%p, %p)\n", hPhysicalGpu, pRamType);
@@ -1433,7 +1433,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu,
     if (!hPhysicalGpu)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    *pRamType = 8;				/* No similar function in nvml, so "type = 8" is GDDR5 */
+    *pRamType = 14;				/* No similar function in nvml, so "type = 14" is GDDR6 "type = 8" is GDDR5 */
     return NVAPI_OK;
 }
 
@@ -1692,6 +1692,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
     return NVAPI_OK;
 }
 
+/* This is intended for use with DXVK d3d11 -> Vulkan library. May cause slowdowns when using wined3d */
 static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrContext, NvU32 bEnable, float fMinDepth, float fMaxDepth)
 {
     ID3D11Device *d3d11_device;
@@ -1867,50 +1868,50 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x46fbeb03, NvAPI_GPU_GetPhysicalFrameBufferSize},
         {0x5a04b644, NvAPI_GPU_GetVirtualFrameBufferSize},
         {0xc7026a87, NvAPI_GPU_GetGpuCoreCount},
-	{0xe3795199, NvAPI_GPU_GetPCIEInfo},
-	{0xd988f0f3, NvAPI_GPU_GetShortName},
-	{0x1890e8da, NvAPI_GetPhysicalGPUFromDisplay},
-	{0x7a4174f4, NvAPI_GPU_PhysxQueryRecommendedState},
-	{0x1bd69f49, NvAPI_GPU_GetAllClocks},
-	{0xa4218928, NvAPI_GPU_GetManufacturingInfo},
-	{0x35B5fd2f, NvAPI_GPU_GetTargetID},
-	{0xe3640a56, NvAPI_GPU_GetThermalSettings},
-	{0x57F7caac, NvAPI_GPU_GetRamType},
-	{0xdcb616c3, NvAPI_GPU_GetAllClockFrequencies},
-	{0xbaaabfcc, NvAPI_GPU_GetSystemType},
-	{0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
-	{0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
-	{0x5f608315, NvAPI_GPU_GetTachReading},
-	{0x01053fa5, NvAPI_GetInterfaceVersionString},
-	{0x927da4f6, NvAPI_GPU_GetCurrentPstate},
-	{0x6ff81213, NvAPI_GPU_GetPstates20},
-	{0xc16c7e2c, NvAPI_GPU_GetVoltageDomainsStatus},
-	{0x1be0b8e5, NvAPI_GPU_GetBusId},
-	{0x2a0a350f, NvAPI_GPU_GetBusSlotId},
-	{0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
-	{0x0be17923, NvAPI_GPU_GetShaderSubPipeCount},
+        {0xe3795199, NvAPI_GPU_GetPCIEInfo},
+        {0xd988f0f3, NvAPI_GPU_GetShortName},
+        {0x1890e8da, NvAPI_GetPhysicalGPUFromDisplay},
+        {0x7a4174f4, NvAPI_GPU_PhysxQueryRecommendedState},
+        {0x1bd69f49, NvAPI_GPU_GetAllClocks},
+        {0xa4218928, NvAPI_GPU_GetManufacturingInfo},
+        {0x35B5fd2f, NvAPI_GPU_GetTargetID},
+        {0xe3640a56, NvAPI_GPU_GetThermalSettings},
+        {0x57F7caac, NvAPI_GPU_GetRamType},
+        {0xdcb616c3, NvAPI_GPU_GetAllClockFrequencies},
+        {0xbaaabfcc, NvAPI_GPU_GetSystemType},
+        {0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
+        {0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
+        {0x5f608315, NvAPI_GPU_GetTachReading},
+        {0x01053fa5, NvAPI_GetInterfaceVersionString},
+        {0x927da4f6, NvAPI_GPU_GetCurrentPstate},
+        {0x6ff81213, NvAPI_GPU_GetPstates20},
+        {0xc16c7e2c, NvAPI_GPU_GetVoltageDomainsStatus},
+        {0x1be0b8e5, NvAPI_GPU_GetBusId},
+        {0x2a0a350f, NvAPI_GPU_GetBusSlotId},
+        {0x63e2f56f, NvAPI_GPU_GetShaderPipeCount},
+        {0x0be17923, NvAPI_GPU_GetShaderSubPipeCount},
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
-	{0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
-	{0x07f9b368, NvAPI_GPU_GetMemoryInfo},
-	{0x774aa982, NvAPI_GPU_GetMemoryInfo},
-	{0xc33baeb1, NvAPI_GPU_GetGPUType},
-	{0x189a1fdf, NvAPI_GPU_GetUsages},
-	{0xe4715417, NvAPI_GPU_GetIRQ},
-	{0xae457190, NvAPI_DISP_GetDisplayIdByDisplayName},
-	{0x5f68da40, NvAPI_D3D11_IsNvShaderExtnOpCodeSupported},
-	{0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
-	{0xda141340, NvAPI_GPU_GetCoolerSettings},
-	{0xedcf624e, NvAPI_GPU_ClientPowerTopologyGetStatus},
+        {0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
+        {0x07f9b368, NvAPI_GPU_GetMemoryInfo},
+        {0x774aa982, NvAPI_GPU_GetMemoryInfo},
+        {0xc33baeb1, NvAPI_GPU_GetGPUType},
+        {0x189a1fdf, NvAPI_GPU_GetUsages},
+        {0xe4715417, NvAPI_GPU_GetIRQ},
+        {0xae457190, NvAPI_DISP_GetDisplayIdByDisplayName},
+        {0x5f68da40, NvAPI_D3D11_IsNvShaderExtnOpCodeSupported},
+        {0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
+        {0xda141340, NvAPI_GPU_GetCoolerSettings},
+        {0xedcf624e, NvAPI_GPU_ClientPowerTopologyGetStatus},
         {0xa4dfd3f2, NvAPI_GPU_ClientPowerTopologyGetInfo},
-	{0x70916171, NvAPI_GPU_ClientPowerPoliciesGetStatus},
-	{0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
-	{0x42aea16a, NvAPI_GPU_GetRamMaker},
-	{0xba94c56e, NULL}, // This function is deprecated > release 304 ref nVidia docs
-	{0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
+        {0x70916171, NvAPI_GPU_ClientPowerPoliciesGetStatus},
+        {0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
+        {0x42aea16a, NvAPI_GPU_GetRamMaker},
+        {0xba94c56e, NULL}, // This function is deprecated > release 304 ref nVidia docs
+        {0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
         {0x1bb18724, NvAPI_GPU_GetBusType},
-	{0xd048c3b1, NvAPI_GPU_GetCurrentPCIEDownstreamWidth},
+        {0xd048c3b1, NvAPI_GPU_GetCurrentPCIEDownstreamWidth},
         {0x3092ac32, NvAPI_SetRefreshRateOverride},
         {0xfa579a0f, NvAPI_GPU_EnableDynamicPstates},
         {0xfb85b01e, NvAPI_GPU_ClientFanCoolersGetInfo},
