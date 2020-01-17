@@ -33,10 +33,8 @@ function build_arch {
 
   mv "$NVAPI_BUILD_DIR/install.$1/lib$1" "$NVAPI_BUILD_DIR"
   mv "$NVAPI_BUILD_DIR/install.$1/fakedlls" "$NVAPI_BUILD_DIR/fakedlls$1"
-  if [ ! -e "$NVAPI_BUILD_DIR/bin" ]; then
-	mkdir "$NVAPI_BUILD_DIR/bin"
-  fi
-  cp "$NVAPI_BUILD_DIR/install.$1/bin/setup_nvapi.sh" "$NVAPI_BUILD_DIR/bin/setup_nvapi_$1.sh"
+  cp "$NVAPI_SRC_DIR/setup_nvapi.sh" "$NVAPI_BUILD_DIR/setup_nvapi.sh"
+  chmod +x "$NVAPI_BUILD_DIR/setup_nvapi.sh"
   rm -R "$NVAPI_BUILD_DIR/build.$1"
   rm -R "$NVAPI_BUILD_DIR/install.$1"
 }

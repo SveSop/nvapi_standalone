@@ -1,30 +1,16 @@
 #!/bin/bash
 
-export WINEDEBUG=-all
-
-nvapi_dir="$(dirname "$(dirname "$(readlink -fm "$0")")")"
-build_arch='@arch@'
+nvapi_dir="$(dirname "$(readlink -fm "$0")")"
 dll_ext='dll.so'
-lib='@libdir@'
+wine="wine"
+lib='lib32'
 
 if [ ! -f "$nvapi_dir/$lib/nvcuda.$dll_ext" ]; then
     echo "nvcuda.$dll_ext not found in $nvapi_dir/$lib" >&2
     exit 1
 fi
 
-if [ -z "$wine" ]; then
-    if [ $build_arch == "x86_64" ]; then
-        wine="wine64"
-	nvapi="nvapi64"
-	nvencodeapi="nvencodeapi64"
-    else
-        wine="wine"
-	nvapi="nvapi"
-	nvencodeapi="nvencodeapi"
-    fi
-fi
-
-winever=`$wine --version | grep wine`
+winever=$($wine --version | grep wine)
 if [ -z "$winever" ]; then
     echo "$wine:"' Not a wine executable. Check your $wine.' >&2
     exit 1
@@ -85,11 +71,13 @@ else
         fi
     fi
 fi
-unix_sys_path="$($wine winepath -u 'C:\windows\system32')"
-if [ $? -ne 0 ]; then
-    exit 1
-fi
 
+unix_sys_path=$($wine winepath -u 'C:\windows\system32' 2> /dev/null)
+
+if [ -z "$unix_sys_path" ]; then
+  echo 'Failed to resolve C:\windows\system32.' >&2
+  exit 1
+fi
 
 ret=0
 
@@ -147,8 +135,23 @@ echo '[1/4] nvcuda :'
 $fun nvcuda
 echo '[2/4] nvcuvid :'
 $fun nvcuvid
-echo '[3/4] $nvapi :'
-$fun $nvapi
+echo '[3/4] nvapi :'
+$fun nvapi
 echo '[4/4] nvencodeapi :'
-$fun $nvencodeapi
+$fun nvencodeapi
+wine="wine64"
+lib='lib64'
+unix_sys_path=$($wine winepath -u 'C:\windows\system32' 2> /dev/null)
+echo '[1/4] 64 bit nvcuda :'
+$fun nvcuda
+echo '[2/4] 64 bit nvcuvid :'
+$fun nvcuvid
+echo '[3/4] 64 bit nvapi64 :'
+$fun nvapi64
+echo '[4/4] 64 bit nvencodeapi64 :'
+$fun nvencodeapi64
+if [ "$fun" = removeOverride ]; then
+   echo "Rebooting prefix!"
+   wineboot -u
+fi
 exit $ret
