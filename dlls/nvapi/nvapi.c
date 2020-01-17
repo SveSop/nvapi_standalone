@@ -22,6 +22,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #define COBJMACROS
 #include "initguid.h"
@@ -35,6 +36,7 @@
 #include "d3d9.h"
 #include "d3d11.h"
 #include "dxvk.h"
+#include "nvsettings.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 
@@ -45,6 +47,9 @@ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 
 nvapi_nvml_state g_nvml;
 #if defined(__i386__) || defined(__x86_64__)
+
+static nvfunc *nvfuncs;
+pthread_t tid;
 
 static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
 {
@@ -236,51 +241,61 @@ static void free_thunks(void)
 #endif
 
 
-int nvidia_settings_query_attribute_str(const char *attribute, char **attr_value)
+void *nvidia_settings_query_attribute(void *attribute)
 {
     /* These buffers *should* be long enough for most purposes */
-    const int ATTR_BUFFER_SIZE = 512;
-    char command[256];
+    const int ATTR_BUFFER_SIZE = 128;
+    char command[64];
     FILE *nvidia_settings = NULL;
     int nch = 0;
+    char *attr_value;
+    char *function = attribute;
+    /* Save thread ID to struct so we can check if it is running later - and detach thread from main */
+    nvfuncs->tid = pthread_self();
+    pthread_detach(pthread_self());
+    TRACE("Starting thread %lu for %s!\n", nvfuncs->tid, function);
 
-    nch = snprintf(command, sizeof(command), "nvidia-settings -q \"%s\" -t", attribute);
+    nch = snprintf(command, sizeof(command), "nvidia-settings -q \"%s\" -t", function);
     if (nch > sizeof(command))
     {
         ERR("nvidia-settings command buffer too short!\n");
-        return -1;
     }
 
     nvidia_settings = popen(command, "r");
 
-    *attr_value = malloc(ATTR_BUFFER_SIZE);
-    nch = fread(*attr_value, 1, ATTR_BUFFER_SIZE, nvidia_settings);
+    attr_value = malloc(ATTR_BUFFER_SIZE);
+    nch = fread(attr_value, 1, ATTR_BUFFER_SIZE, nvidia_settings);
     if (nch == ATTR_BUFFER_SIZE)
     {
         ERR("nvidia-settings attr_value buffer too short!\n");
-        free(*attr_value);
-        *attr_value = NULL;
-        return pclose(nvidia_settings);
+        attr_value = 0;
+        nvfuncs->tid = 0;
+        pclose(nvidia_settings);
+        return NULL;
     }
+    (attr_value)[nch] = '\0';
 
-    (*attr_value)[nch] = '\0';
-    return pclose(nvidia_settings);
-}
-
-int nvidia_settings_query_attribute_int(const char *attribute, int *attr_value)
-{
-    int retcode = 0;
-    char *str_value = NULL;
-
-    retcode = nvidia_settings_query_attribute_str(attribute, &str_value);
-
-    if (retcode == 0)
-        *attr_value = atoi(str_value);
-
-    if (str_value)
-        free(str_value);
-
-    return retcode;
+    /* Save the result to the value struct */
+    if(strncmp(function, "GPUCurrentFanSpeedRPM", 21) == 0)
+         nvfuncs->GPUCurrentFanSpeedRPM.value = atoi(attr_value);
+    else if(strncmp(function, "GPUCurrentFanSpeed", 18) == 0)
+         nvfuncs->GPUCurrentFanSpeed.value = atoi(attr_value);
+    else if(strncmp(function, "GPUFanControlType", 17) == 0)
+         nvfuncs->GPUFanControlType.value = atoi(attr_value);
+    else if(strncmp(function, "GPUMemoryInterface", 18) == 0)
+         nvfuncs->GPUMemoryInterface.value = atoi(attr_value);
+    else if(strncmp(function, "Irq", 3) == 0)
+         nvfuncs->Irq.value = atoi(attr_value);
+    else if(strncmp(function, "BusType", 7) == 0)
+         nvfuncs->BusType.value = atoi(attr_value);
+    else if(strncmp(function, "[gpu:0]/CUDACores", 17) == 0)
+         nvfuncs->CUDACores.value = atoi(attr_value);
+    else
+         printf("Could not get value for %s\n", function);
+    pclose(nvidia_settings);
+    TRACE("Thread %lu ended work for %s!\n", nvfuncs->tid, function);
+    nvfuncs->tid = 0;
+    return NULL;							/* And hopefully kill thread! */
 }
 
 static int get_video_memory_total(void)
@@ -988,7 +1003,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGPUType(NvPhysicalGpuHandle hPhysicalGpu,
 /* GPU Memory bandwidth and Location */
 static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hPhysicalGpu, NvU32* pWidth, NvU32* pLocation)
 {
-    int bwidth, retcode = 0;
     TRACE("(%p, %p, %p)\n", hPhysicalGpu, pWidth, pLocation);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -996,14 +1010,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hP
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    retcode = nvidia_settings_query_attribute_int("GPUMemoryInterface", &bwidth);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
+    /* checking if thread is running, and if not start thread getting value */
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "GPUMemoryInterface");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
+
     *pLocation = 1;						/* 1 = "GPU Dedicated" */
-    *pWidth = bwidth;
+    *pWidth = nvfuncs->GPUMemoryInterface.value;
     return NVAPI_OK;
 }
 
@@ -1129,7 +1143,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
 /* Get device IRQ from nvidia-settings */
 static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pIRQ)
 {
-    int gpuirq, retcode = 0;
     TRACE("(%p, %p)\n", hPhysicalGPU, pIRQ);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -1137,13 +1150,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetIRQ(NvPhysicalGpuHandle hPhysicalGPU, NvU
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    retcode = nvidia_settings_query_attribute_int("Irq", &gpuirq);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-    *pIRQ = gpuirq;
+
+    /* checking if thread is running, and if not start thread getting value */
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "Irq");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
+
+    *pIRQ = nvfuncs->Irq.value;
     if (!pIRQ)
       return NVAPI_INVALID_ARGUMENT;
 
@@ -1181,8 +1195,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
 /* Get fan speed */
 static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysicalGPU, NvU32 *pValue)
 {
-    int retcode = 0;
-    int speed = 0;
     TRACE("(%p, %p)\n", hPhysicalGPU,  pValue);
 
     if (hPhysicalGPU != FAKE_PHYSICAL_GPU)
@@ -1190,16 +1202,15 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
         FIXME("invalid handle: %p\n", hPhysicalGPU);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Use nVidia-settings to grab fan RPM */
-    retcode = nvidia_settings_query_attribute_int("GPUCurrentFanSpeedRPM", &speed);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
 
-    *pValue = speed;
-    TRACE("Fan speed is: %u rpm\n", speed);
+    /* checking if thread is running, and if not start thread getting value */
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "GPUCurrentFanSpeedRPM");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
+
+    *pValue = nvfuncs->GPUCurrentFanSpeedRPM.value;
+    TRACE("Fan speed is: %u rpm\n", nvfuncs->GPUCurrentFanSpeedRPM.value);
 
     return NVAPI_OK;
 }
@@ -1275,7 +1286,7 @@ static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDe
 /* nVidia GPU Bus Type */
 static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_BUS_TYPE *pBusType)
 {
-    int retcode, btype;
+    int btype;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pBusType);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1283,19 +1294,22 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusType(NvPhysicalGpuHandle hPhysicalGpu,
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Get GPU_BUS_TYPE from nvidia-settings */
-    retcode = nvidia_settings_query_attribute_int("BusType", &btype);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
+
+    /* checking if thread is running, and if not start thread getting value */
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "BusType");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
+
     /* nvml has different type enum than nvapi, so some "conversion" must happen 	*/
     /* NVML				NVAPI						*/
     /* AGP=0				0=undefined					*/
     /* PCI=1				1=PCI		(The same!)			*/
     /* PCIe=2				2=AGP						*/
     /* Integrated=3			3=PCIe						*/
+
+    btype = nvfuncs->BusType.value;
+
     switch(btype){
        case 0: (*pBusType=2); break;
        case 1: (*pBusType=1); break;
@@ -1342,7 +1356,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
 /* Shader Pipe Count (Se note below) */
 static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pShaderPipeCount)
 {
-    int retcode, nCores = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pShaderPipeCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1350,15 +1363,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhys
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Read number of "cores" from nvidia-settings */
-    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
 
-    *pShaderPipeCount = nCores;
+    /* checking if thread is running, and if not start thread getting value */
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "[gpu:0]/CUDACores");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
+
+    *pShaderPipeCount = nvfuncs->CUDACores.value;
     if (!pShaderPipeCount)
       return NVAPI_INVALID_ARGUMENT;
 
@@ -1369,7 +1381,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhys
    "Shader Units" = GPU_CORES ?				*/
 static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
 {
-    int retcode, nCores = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu,  pCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1377,13 +1388,14 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
-    *pCount = nCores;
+
+    /* checking if thread is running, and if not start thread getting value */
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "GPUMemoryInterface");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
+
+    *pCount = nvfuncs->CUDACores.value;
     if (!pCount)
       return NVAPI_INVALID_ARGUMENT;
 
@@ -1453,42 +1465,46 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamMaker(NvPhysicalGpuHandle hPhysicalGpu
 /* Implement CoolerSettings */
 static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysicalGpu, NvU32 coolerIndex, NV_GPU_COOLER_SETTINGS *pCoolerInfo)
 {
-    int fanlevel, controltype, retcode = 0;
     TRACE("(%p, %d, %p)\n", hPhysicalGpu, coolerIndex, pCoolerInfo);
+    nvmlReturn_t rc = NVML_SUCCESS;
+    int fan = 0;
+    unsigned int speed = 0;
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
     {
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    /* Use nVidia-settings to grab fan load % */
-    retcode = nvidia_settings_query_attribute_int("GPUCurrentFanSpeed", &fanlevel);
-    if (retcode != 0)
+
+    /* checking if thread is running, and if not start thread getting value */
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "GPUFanControlType");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
+
+    /* Use nvml to grab fan load % */
+    rc = nvmlDeviceGetFanSpeed_v2(g_nvml.device, fan, &speed);
+    if (rc != NVML_SUCCESS)
     {
-        ERR("nvidia-settings query failed: %d\n", retcode);
+        ERR("nvml: could not get device name: error %u\n", rc);
         return NVAPI_ERROR;
     }
-    retcode = nvidia_settings_query_attribute_int("GPUFanControlType", &controltype);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
+
     pCoolerInfo->version = NV_GPU_COOLER_SETTINGS_VER;
     pCoolerInfo->count = 1;
-    pCoolerInfo->cooler[0].type = 1;				/* "Fan" type cooler */
-    pCoolerInfo->cooler[0].controller = 2;			/* "Internal" controller */
+    pCoolerInfo->cooler[0].type = 1;						/* "Fan" type cooler */
+    pCoolerInfo->cooler[0].controller = 2;					/* "Internal" controller */
     pCoolerInfo->cooler[0].defaultMinLevel = 0;
     pCoolerInfo->cooler[0].defaultMaxLevel = 100;
     pCoolerInfo->cooler[0].currentMinLevel = 0;
     pCoolerInfo->cooler[0].currentMaxLevel = 100;
-    pCoolerInfo->cooler[0].currentLevel = fanlevel;		/* Fan level in % from nvidia-settings */
+    pCoolerInfo->cooler[0].currentLevel = speed;				/* Fan level in % from nvml */
     pCoolerInfo->cooler[0].defaultPolicy = 0;
     pCoolerInfo->cooler[0].currentPolicy = 0;
-    pCoolerInfo->cooler[0].target = 1;				/* GPU */
-    pCoolerInfo->cooler[0].controlType = controltype;		/* Cooler Control type from nvidia-settings */
+    pCoolerInfo->cooler[0].target = 1;						/* GPU */
+    pCoolerInfo->cooler[0].controlType = nvfuncs->GPUFanControlType.value;	/* Cooler Control type from nvidia-settings */
     pCoolerInfo->cooler[0].active = 1;
-    TRACE("Fanlevel: %d, type: %d\n", fanlevel, controltype);
+    TRACE("Fanlevel: %d percent, type: %d\n", speed, nvfuncs->GPUFanControlType.value);
     return NVAPI_OK;
 }
 
@@ -1668,7 +1684,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
 
 static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
 {
-    int retcode, nCores = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pCount);
 
     if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
@@ -1680,14 +1695,12 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
     if (!pCount)
         return NVAPI_INVALID_ARGUMENT;
 
-    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
-    if (retcode != 0)
-    {
-        ERR("nvidia-settings query failed: %d\n", retcode);
-        return NVAPI_ERROR;
-    }
+    if(nvfuncs->tid == 0)
+        pthread_create(&tid, NULL, nvidia_settings_query_attribute, "[gpu:0]/CUDACores");
+    else
+        TRACE("Thread %lu active, getting value later!\n", nvfuncs->tid);
 
-    *pCount = nCores;
+    *pCount = nvfuncs->CUDACores.value;
 
     return NVAPI_OK;
 }
@@ -1992,7 +2005,8 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
     {
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(instance);
-
+            nvfuncs = malloc(sizeof(*nvfuncs));
+            nvfuncs->tid = 0;
             if (!nvapi_init_nvml())
                 ERR("Could not load NVML; failing out of DllMain\n");
 
@@ -2000,6 +2014,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
             break;
         case DLL_PROCESS_DETACH:
             free_thunks();
+            free(nvfuncs);
             nvapi_shutdown_nvml();
             break;
     }
