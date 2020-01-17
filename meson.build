@@ -8,7 +8,7 @@ cpu_family = target_machine.cpu_family()
 
 include_path = include_directories('./include')
 
-lib_d3d11   = declare_dependency(link_args: [ '-ld3d11' ])
+lib_d3d11   = declare_dependency(link_args: [ '-ld3d11', '-lpthread' ])
 lib_nvml    = declare_dependency(link_args: [ '-lnvidia-ml' ])
 
 winebuild = find_program('winebuild')
@@ -26,4 +26,3 @@ idl_generator = generator(widl,
   arguments : [ target_arch, '-o', '@OUTPUT@', '-D__WINESRC__', '@EXTRA_ARGS@', '@INPUT@' ])
 
 subdir('dlls')
-subdir('utils')
