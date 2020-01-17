@@ -22,6 +22,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #define COBJMACROS
 #include "initguid.h"
@@ -236,13 +237,14 @@ static void free_thunks(void)
 #endif
 
 
-int nvidia_settings_query_attribute_str(const char *attribute, char **attr_value)
+int nvidia_settings_query_attribute(const char *attribute, int *att_value)
 {
     /* These buffers *should* be long enough for most purposes */
-    const int ATTR_BUFFER_SIZE = 512;
-    char command[256];
+    const int ATTR_BUFFER_SIZE = 128;
+    char command[64];
     FILE *nvidia_settings = NULL;
     int nch = 0;
+    char *attr_value;
 
     nch = snprintf(command, sizeof(command), "nvidia-settings -q \"%s\" -t", attribute);
     if (nch > sizeof(command))
@@ -253,34 +255,18 @@ int nvidia_settings_query_attribute_str(const char *attribute, char **attr_value
 
     nvidia_settings = popen(command, "r");
 
-    *attr_value = malloc(ATTR_BUFFER_SIZE);
-    nch = fread(*attr_value, 1, ATTR_BUFFER_SIZE, nvidia_settings);
+    attr_value = malloc(ATTR_BUFFER_SIZE);
+    nch = fread(attr_value, 1, ATTR_BUFFER_SIZE, nvidia_settings);
     if (nch == ATTR_BUFFER_SIZE)
     {
         ERR("nvidia-settings attr_value buffer too short!\n");
-        free(*attr_value);
-        *attr_value = NULL;
+        att_value = NULL;
         return pclose(nvidia_settings);
     }
 
-    (*attr_value)[nch] = '\0';
+    (attr_value)[nch] = '\0';
+    *att_value = atoi(attr_value);
     return pclose(nvidia_settings);
-}
-
-int nvidia_settings_query_attribute_int(const char *attribute, int *attr_value)
-{
-    int retcode = 0;
-    char *str_value = NULL;
-
-    retcode = nvidia_settings_query_attribute_str(attribute, &str_value);
-
-    if (retcode == 0)
-        *attr_value = atoi(str_value);
-
-    if (str_value)
-        free(str_value);
-
-    return retcode;
 }
 
 static int get_video_memory_total(void)
@@ -830,7 +816,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhys
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
     /* Read number of "cores" from nvidia-settings */
-    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
+    retcode = nvidia_settings_query_attribute("[gpu:0]/CUDACores", &nCores);
     if (retcode != 0)
     {
         ERR("nvidia-settings query failed: %d\n", retcode);
@@ -856,7 +842,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
+    retcode = nvidia_settings_query_attribute("[gpu:0]/CUDACores", &nCores);
     if (retcode != 0)
     {
         ERR("nvidia-settings query failed: %d\n", retcode);
@@ -972,7 +958,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
     if (!pCount)
         return NVAPI_INVALID_ARGUMENT;
 
-    retcode = nvidia_settings_query_attribute_int("[gpu:0]/CUDACores", &nCores);
+    retcode = nvidia_settings_query_attribute("[gpu:0]/CUDACores", &nCores);
     if (retcode != 0)
     {
         ERR("nvidia-settings query failed: %d\n", retcode);
