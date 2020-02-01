@@ -18,15 +18,14 @@ Some custom mods for driver version++
 ## How to install  
 
 Setup script will be located in:  
-destdir/bin/setup_nvapi_32.sh (for 32-bit install)  
-destdir/bin/setup_nvapi_64.sh (for 64-bit install)  
+destdir/setup_nvapi.sh  
 
-eg. 32-bit  
-WINEPREFIX=/your/wine/prefix ./setup_nvapi_32.sh install  
+eg.  
+WINEPREFIX=/your/wine/prefix ./setup_nvapi.sh install  
 
-OBS! For a x86_64 WINEPREFIX you need to run BOTH scripts!  
+OBS! Recommend a x86_64 WINEPREFIX as installscript may have unpredictible result in a 32-bit only wineprefix!  
 
-This creates symlinks in the wineprefix + creates dll-override that ENABLE nvapi. This MAY cause problems when using DXVK!  
+This creates symlinks in the wineprefix + creates dll-override that ENABLE nvapi.  
 
 ## Goal  
 
@@ -60,6 +59,8 @@ wine-staging binaries!).
 ## Working on  
 
 * Implement correct performancelevels.  
+* Implement voltage reading.  
+* The nvidia-settings routine is slow and causes delay. Currently experimenting with offloading this to different thread.  
 
 ## Info  
 
