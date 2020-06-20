@@ -14,7 +14,7 @@ nvcuda_res_target = custom_target('nvcuda.res',
 
 nvcuda_dll = shared_library('nvcuda.dll', nvcuda_src,
   name_prefix         : '',
-  dependencies        : [ thread_dep ],
+  dependencies        : [ thread_dep, lib_dl ],
   include_directories : include_path,
   objects             : 'nvcuda.spec',
   install             : true)

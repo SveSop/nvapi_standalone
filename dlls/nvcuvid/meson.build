@@ -13,6 +13,7 @@ nvcuvid_res_target = custom_target('nvcuvid.res',
 nvcuvid_dll = shared_library('nvcuvid.dll', nvcuvid_src,
   name_prefix         : '',
   include_directories : include_path,
+  dependencies        : [ lib_dl ],
   objects             : 'nvcuvid.spec',
   install             : true)
 

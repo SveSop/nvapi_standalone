@@ -3,7 +3,7 @@
 An attempt to build WINE's NvAPI implementation outside a WINE source tree.
 Original source: https://github.com/pchome/wine-playground/tree/master/nvapi  
 
-Require nVidia proprietary driver version 440.x or newer  
+Requires nVidia proprietary driver version 440.x or newer  
 
 Some custom mods for driver version++  
 

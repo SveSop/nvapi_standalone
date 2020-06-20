@@ -13,6 +13,7 @@ nvencodeapi_res_target = custom_target('nvencodeapi.res',
 nvencodeapi_dll = shared_library('nvencodeapi.dll', nvencodeapi_src,
   name_prefix         : '',
   include_directories : include_path,
+  dependencies        : [ lib_dl ],
   objects             : 'nvencodeapi.spec',
   install             : true)
 
