@@ -37,6 +37,7 @@
 #include "cuda.h"
 #include "nvcuda.h"
 #include "d3d9.h"
+#include "dxgi.h"
 
 #if defined(__x86_64) || defined(AMD64) || defined(_M_AMD64)
 #define DEV_PTR "%llu"
@@ -427,7 +428,7 @@ static BOOL load_functions(void)
 
     for (i = 0; i < sizeof(libname)/sizeof(libname[0]); i++)
     {
-        cuda_handle = wine_dlopen(libname[i], RTLD_NOW, NULL, 0);
+        cuda_handle = dlopen(libname[i], RTLD_NOW);
         if (cuda_handle) break;
     }
 
@@ -437,8 +438,8 @@ static BOOL load_functions(void)
         return FALSE;
     }
 
-    #define LOAD_FUNCPTR(f) if((p##f = wine_dlsym(cuda_handle, #f, NULL, 0)) == NULL){FIXME("Can't find symbol %s\n", #f); return FALSE;}
-    #define TRY_LOAD_FUNCPTR(f) p##f = wine_dlsym(cuda_handle, #f, NULL, 0)
+    #define LOAD_FUNCPTR(f) if((p##f = dlsym(cuda_handle, #f)) == NULL){FIXME("Can't find symbol %s\n", #f); return FALSE;}
+    #define TRY_LOAD_FUNCPTR(f) p##f = dlsym(cuda_handle, #f)
 
     LOAD_FUNCPTR(cuArray3DCreate);
     LOAD_FUNCPTR(cuArray3DCreate_v2);
@@ -2958,6 +2959,13 @@ CUresult WINAPI wine_cuD3D9GetDevice(CUdevice *pCudaDevice, const char *pszAdapt
     return pcuDeviceGet(pCudaDevice, 0);
 }
 
+CUresult WINAPI wine_cuD3D10GetDevice(CUdevice *pCudaDevice, IDXGIAdapter *pAdapter)
+{
+    FIXME("(%p, %p) - semi-stub\n", pCudaDevice, pAdapter);
+    /* DXGI adapters don't have an OpenGL context assigned yet, otherwise we could use cuGLGetDevices */
+    return pcuDeviceGet(pCudaDevice, 0);
+}
+
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
     TRACE("(%p, %u, %p)\n", instance, reason, reserved);
@@ -2969,7 +2977,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
             break;
         case DLL_PROCESS_DETACH:
             if (reserved) break;
-            if (cuda_handle) wine_dlclose(cuda_handle, NULL, 0);
+            if (cuda_handle) dlclose(cuda_handle);
             break;
         case DLL_THREAD_ATTACH:
         case DLL_THREAD_DETACH:

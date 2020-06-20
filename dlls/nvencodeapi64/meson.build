@@ -13,6 +13,7 @@ nvencodeapi64_res_target = custom_target('nvencodeapi64.res',
 nvencodeapi64_dll = shared_library('nvencodeapi64.dll', nvencodeapi64_src,
   name_prefix         : '',
   include_directories : include_path,
+  dependencies        : [ lib_dl ],
   objects             : 'nvencodeapi64.spec',
   install             : true)
 

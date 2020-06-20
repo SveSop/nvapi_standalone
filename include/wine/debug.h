@@ -29,10 +29,6 @@
 #include <guiddef.h>
 #endif
 
-#ifdef __WINE_WINE_TEST_H
-#error This file should not be used in Wine tests
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -81,7 +77,7 @@ struct __wine_debug_channel
 #define __WINE_IS_DEBUG_ON(dbcl,dbch) \
   (__WINE_GET_DEBUGGING##dbcl(dbch) && (__wine_dbg_get_channel_flags(dbch) & (1 << __WINE_DBCL##dbcl)))
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__)
 
 #define __WINE_DPRINTF(dbcl,dbch) \
   do { if(__WINE_GET_DEBUGGING(dbcl,(dbch))) { \
@@ -92,7 +88,11 @@ struct __wine_debug_channel
 #define __WINE_DBG_LOG(args...) \
     wine_dbg_log( __dbcl, __dbch, __FUNCTION__, args); } } while(0)
 
+#if !defined(__WINE_USE_MSVCRT) || defined(__MINGW32__)
 #define __WINE_PRINTF_ATTR(fmt,args) __attribute__((format (printf,fmt,args)))
+#else
+#define __WINE_PRINTF_ATTR(fmt,args)
+#endif
 
 
 #ifdef WINE_NO_TRACE_MSGS

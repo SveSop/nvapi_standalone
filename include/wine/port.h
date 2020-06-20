@@ -47,7 +47,7 @@
  * Hard-coded values for the Windows platform
  */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include <direct.h>
 #include <io.h>
@@ -55,15 +55,32 @@
 
 #define mkdir(path,mode) mkdir(path)
 
+static inline void *dlopen(const char *name, int flags) { return NULL; }
+static inline void *dlsym(void *handle, const char *name) { return NULL; }
+static inline int dlclose(void *handle) { return 0; }
+static inline const char *dlerror(void) { return "No dlopen support on Windows"; }
+
 #ifdef _MSC_VER
 
 #define ftruncate chsize
-#define isfinite(x) _finite(x)
-#define isinf(x) (!(_finite(x) || _isnan(x)))
-#define isnan(x) _isnan(x)
+#ifndef isfinite
+# define isfinite(x) _finite(x)
+#endif
+#ifndef isinf
+# define isinf(x) (!(_finite(x) || _isnan(x)))
+#endif
+#ifndef isnan
+# define isnan(x) _isnan(x)
+#endif
 #define popen _popen
 #define pclose _pclose
-#define snprintf _snprintf
+/* The UCRT headers in the Windows SDK #error out if we #define snprintf.
+ * The C headers that came with previous Visual Studio versions do not have
+ * snprintf. Check for VS 2015, which appears to be the first version to
+ * use the UCRT headers by default. */
+#if _MSC_VER < 1900
+# define snprintf _snprintf
+#endif
 #define strtoll _strtoi64
 #define strtoull _strtoui64
 #define strncasecmp _strnicmp
@@ -317,6 +334,15 @@ double rint(double x);
 float rintf(float x);
 #endif
 
+#ifndef RENAME_EXCHANGE
+#define RENAME_EXCHANGE (1 << 1)
+#endif /* RENAME_EXCHANGE */
+
+#ifndef HAVE_RENAMEAT2
+int renameat2( int olddirfd, const char *oldpath, int newdirfd, const char *newpath,
+               unsigned int flags );
+#endif /* HAVE_RENAMEAT2 */
+
 #ifndef HAVE_STATVFS
 int statvfs( const char *path, struct statvfs *buf );
 #endif
@@ -335,142 +361,21 @@ int usleep (unsigned int useconds);
 
 extern int mkstemps(char *template, int suffix_len);
 
-/* Interlocked functions */
+/* Extended attribute functions */
 
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
-
-static inline int interlocked_cmpxchg( int *dest, int xchg, int compare )
-{
-    int ret;
-    __asm__ __volatile__( "lock; cmpxchgl %2,(%1)"
-                          : "=a" (ret) : "r" (dest), "r" (xchg), "0" (compare) : "memory" );
-    return ret;
-}
-
-static inline void *interlocked_cmpxchg_ptr( void **dest, void *xchg, void *compare )
-{
-    void *ret;
-#ifdef __x86_64__
-    __asm__ __volatile__( "lock; cmpxchgq %2,(%1)"
-                          : "=a" (ret) : "r" (dest), "r" (xchg), "0" (compare) : "memory" );
-#else
-    __asm__ __volatile__( "lock; cmpxchgl %2,(%1)"
-                          : "=a" (ret) : "r" (dest), "r" (xchg), "0" (compare) : "memory" );
+#ifndef XATTR_USER_PREFIX
+# define XATTR_USER_PREFIX "user."
 #endif
-    return ret;
-}
-
-static inline int interlocked_xchg( int *dest, int val )
-{
-    int ret;
-    __asm__ __volatile__( "lock; xchgl %0,(%1)"
-                          : "=r" (ret) : "r" (dest), "0" (val) : "memory" );
-    return ret;
-}
-
-static inline void *interlocked_xchg_ptr( void **dest, void *val )
-{
-    void *ret;
-#ifdef __x86_64__
-    __asm__ __volatile__( "lock; xchgq %0,(%1)"
-                          : "=r" (ret) :"r" (dest), "0" (val) : "memory" );
-#else
-    __asm__ __volatile__( "lock; xchgl %0,(%1)"
-                          : "=r" (ret) : "r" (dest), "0" (val) : "memory" );
-#endif
-    return ret;
-}
-
-static inline int interlocked_xchg_add( int *dest, int incr )
-{
-    int ret;
-    __asm__ __volatile__( "lock; xaddl %0,(%1)"
-                          : "=r" (ret) : "r" (dest), "0" (incr) : "memory" );
-    return ret;
-}
-
-#ifdef __x86_64__
-static inline unsigned char interlocked_cmpxchg128( __int64 *dest, __int64 xchg_high,
-                                                    __int64 xchg_low, __int64 *compare )
-{
-    unsigned char ret;
-    __asm__ __volatile__( "lock cmpxchg16b %0; setz %b2"
-                          : "=m" (dest[0]), "=m" (dest[1]), "=r" (ret),
-                            "=a" (compare[0]), "=d" (compare[1])
-                          : "m" (dest[0]), "m" (dest[1]), "3" (compare[0]), "4" (compare[1]),
-                            "c" (xchg_high), "b" (xchg_low) );
-    return ret;
-}
+#ifndef XATTR_SIZE_MAX
+# define XATTR_SIZE_MAX    65536
 #endif
 
-#else  /* __GNUC__ */
-
-#ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
-static inline int interlocked_cmpxchg( int *dest, int xchg, int compare )
-{
-    return __sync_val_compare_and_swap( dest, compare, xchg );
-}
-
-static inline int interlocked_xchg_add( int *dest, int incr )
-{
-    return __sync_fetch_and_add( dest, incr );
-}
-
-static inline int interlocked_xchg( int *dest, int val )
-{
-    int ret;
-    do ret = *dest; while (!__sync_bool_compare_and_swap( dest, ret, val ));
-    return ret;
-}
-#else
-extern int interlocked_cmpxchg( int *dest, int xchg, int compare );
-extern int interlocked_xchg_add( int *dest, int incr );
-extern int interlocked_xchg( int *dest, int val );
-#endif
-
-#if (defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) && __SIZEOF_POINTER__ == 4) \
- || (defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8) && __SIZEOF_POINTER__ == 8)
-static inline void *interlocked_cmpxchg_ptr( void **dest, void *xchg, void *compare )
-{
-    return __sync_val_compare_and_swap( dest, compare, xchg );
-}
-
-static inline void *interlocked_xchg_ptr( void **dest, void *val )
-{
-    void *ret;
-    do ret = *dest; while (!__sync_bool_compare_and_swap( dest, ret, val ));
-    return ret;
-}
-#else
-extern void *interlocked_cmpxchg_ptr( void **dest, void *xchg, void *compare );
-extern void *interlocked_xchg_ptr( void **dest, void *val );
-#endif
-
-#if defined(__x86_64__) || defined(__aarch64__) || defined(_WIN64)
-extern unsigned char interlocked_cmpxchg128( __int64 *dest, __int64 xchg_high,
-                                             __int64 xchg_low, __int64 *compare );
-#endif
-
-#endif  /* __GNUC__ */
-
-#ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
-static inline __int64 interlocked_cmpxchg64( __int64 *dest, __int64 xchg, __int64 compare )
-{
-    return __sync_val_compare_and_swap( dest, compare, xchg );
-}
-#else
-extern __int64 interlocked_cmpxchg64( __int64 *dest, __int64 xchg, __int64 compare );
-#endif
-
-static inline int interlocked_inc( int *dest )
-{
-    return interlocked_xchg_add( dest, 1 ) + 1;
-}
-
-static inline int interlocked_dec( int *dest )
-{
-    return interlocked_xchg_add( dest, -1 ) - 1;
-}
+extern int xattr_fget( int filedes, const char *name, void *value, size_t size );
+extern int xattr_fremove( int filedes, const char *name );
+extern int xattr_fset( int filedes, const char *name, void *value, size_t size );
+extern int xattr_get( const char *path, const char *name, void *value, size_t size );
+extern int xattr_remove( const char *path, const char *name );
+extern int xattr_set( const char *path, const char *name, void *value, size_t size );
 
 #else /* NO_LIBWINE_PORT */
 
@@ -480,13 +385,6 @@ static inline int interlocked_dec( int *dest )
 #define fstatvfs                __WINE_NOT_PORTABLE(fstatvfs)
 #define getopt_long             __WINE_NOT_PORTABLE(getopt_long)
 #define getopt_long_only        __WINE_NOT_PORTABLE(getopt_long_only)
-#define interlocked_cmpxchg     __WINE_NOT_PORTABLE(interlocked_cmpxchg)
-#define interlocked_cmpxchg_ptr __WINE_NOT_PORTABLE(interlocked_cmpxchg_ptr)
-#define interlocked_dec         __WINE_NOT_PORTABLE(interlocked_dec)
-#define interlocked_inc         __WINE_NOT_PORTABLE(interlocked_inc)
-#define interlocked_xchg        __WINE_NOT_PORTABLE(interlocked_xchg)
-#define interlocked_xchg_add    __WINE_NOT_PORTABLE(interlocked_xchg_add)
-#define interlocked_xchg_ptr    __WINE_NOT_PORTABLE(interlocked_xchg_ptr)
 #define lstat                   __WINE_NOT_PORTABLE(lstat)
 #define pread                   __WINE_NOT_PORTABLE(pread)
 #define pwrite                  __WINE_NOT_PORTABLE(pwrite)

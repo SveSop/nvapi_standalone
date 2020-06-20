@@ -8,8 +8,8 @@ strip = 'strip'
 needs_exe_wrapper = true
 winelib = true
 
-c_args = ['-m32', '-march=native', '--no-gnu-unique', '-D__WINESRC__', '-Wno-attributes', '-Wno-implicit-function-declaration']
-c_link_args = ['-m32', '-march=native', '-mwindows']
+c_args = ['-m32', '--no-gnu-unique', '-D__WINESRC__', '-Wno-attributes', '-Wno-implicit-function-declaration']
+c_link_args = ['-m32', '-mwindows']
 
 [host_machine]
 system = 'linux'
