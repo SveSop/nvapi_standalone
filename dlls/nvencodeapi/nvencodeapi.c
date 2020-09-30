@@ -363,9 +363,9 @@ static BOOL load_nvencode(void)
     {
         "libnvidia-encode.so",
         #ifdef __i386__
-        "/usr/lib/i386-linux-gnu/nvidia/current/libnvidia-encode.so",
+        "/usr/lib/i386-linux-gnu/libnvidia-encode.so",
         #elif defined __x86_64__
-        "/usr/lib/x86_64-linux-gnu/nvidia/current/libnvidia-encode.so",
+        "/usr/lib/x86_64-linux-gnu/libnvidia-encode.so",
         #endif
     };
     int i;
