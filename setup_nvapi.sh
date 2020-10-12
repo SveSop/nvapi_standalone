@@ -12,7 +12,7 @@ fi
 
 winever=$($wine --version | grep wine)
 if [ -z "$winever" ]; then
-    echo "$wine:"' Not a wine executable. Check your $wine.' >&2
+    echo "$wine:  Not a wine executable. Check your $wine." >&2
     exit 1
 fi
 
@@ -22,7 +22,7 @@ assume=
 function ask {
     echo "$1"
     if [ -z "$assume" ]; then
-        read continue
+        read -r continue
     else
         continue=$assume
         echo "$continue"
@@ -83,7 +83,7 @@ ret=0
 
 function removeOverride {
     echo "    [1/2] Removing override... "
-    $wine reg delete 'HKEY_CURRENT_USER\Software\Wine\DllOverrides' /v $1 /f > /dev/null 2>&1
+    $wine reg delete 'HKEY_CURRENT_USER\Software\Wine\DllOverrides' /v "$1" /f > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "Override does not exist, trying next..."
         ret=2
@@ -104,7 +104,7 @@ function removeOverride {
 
 function createOverride {
     echo "    [1/2] Creating override... "
-    $wine reg add 'HKEY_CURRENT_USER\Software\Wine\DllOverrides' /v $1 /d native /f >/dev/null 2>&1
+    $wine reg add 'HKEY_CURRENT_USER\Software\Wine\DllOverrides' /v "$1" /d native /f >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo -e "Failed"
         exit 1
