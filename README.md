@@ -9,7 +9,7 @@ Some custom mods for driver version++
 
 ## Requirements:  
 - [WINE](https://www.winehq.org/)  
-- [Meson](http://mesonbuild.com/)  
+- [Meson](http://mesonbuild.com/) (>= version 0.56)  
 
 ## How to build  
 
