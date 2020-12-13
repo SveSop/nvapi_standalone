@@ -12,9 +12,9 @@ lib_d3d11   = declare_dependency(link_args: [ '-ld3d11', '-lpthread' ])
 lib_nvml    = declare_dependency(link_args: [ '-lnvidia-ml' ])
 lib_dl      = declare_dependency(link_args: [ '-ldl' ])
 
-winebuild = find_program('winebuild')
-winegcc   = find_program('winegcc')
-widl         = find_program('widl')
+winebuild   = find_program('winebuild')
+winegcc     = find_program('winegcc')
+widl        = find_program('widl')
 
 target_arch = cpu_family == 'x86_64' ? '-m64' : '-m32'
 
