@@ -8,19 +8,8 @@ Requires nVidia proprietary driver version 440.x or newer
 Some custom mods for driver version++  
 
 ## Requirements:  
-
 - [WINE](https://www.winehq.org/)  
 - [Meson](http://mesonbuild.com/) (>= version 0.56)  
-
-## Possible Ubuntu spesific  
-
-When building with winehq version of wine > 6.0, you need to use self-compiled  
-version, as it seems winegcc tries to link 64-bit libwinecrt0 against the 32-bit  
-build for some unknown reason. This is supposedly fixed by installing wine32-tools  
-package on Ubuntu, but this in turn will remove winehq version of wine.  
-You can point the PATH variable to your self-compiled wine version like this:  
-PATH=/home/yourname/yourwine/bin/:$PATH  
-before compiling. Update to correct path for your system ofc.  
 
 ## How to build  
 
