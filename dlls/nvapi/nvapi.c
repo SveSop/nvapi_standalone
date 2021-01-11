@@ -275,9 +275,6 @@ static int get_video_memory_total(void)
     static nvmlMemory_t memory = { 0 };
     nvmlReturn_t rc = NVML_SUCCESS;
 
-    if (memory.total)
-        return memory.total / 1024;
-
     rc = nvmlDeviceGetMemoryInfo(g_nvml.device, &memory);
     if (rc != NVML_SUCCESS)
         TRACE("XNVCTRLQueryTargetAttribute(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
@@ -292,9 +289,6 @@ static int get_video_memory_free(void)
 {
     static nvmlMemory_t memory = { 0 };
     nvmlReturn_t rc = NVML_SUCCESS;
-
-    if (memory.free)
-        return memory.free / 1024;
 
     rc = nvmlDeviceGetMemoryInfo(g_nvml.device, &memory);
     if (rc != NVML_SUCCESS)
@@ -866,7 +860,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
 
     pMemoryInfo->version = NV_DISPLAY_DRIVER_MEMORY_INFO_V3_VER;
     pMemoryInfo->dedicatedVideoMemory = get_video_memory_total();		/* Report total vram as dedicated vram */
-    pMemoryInfo->availableDedicatedVideoMemory = get_video_memory_total();	/* Get available dedicated vram */
+    pMemoryInfo->availableDedicatedVideoMemory = get_video_memory_free();	/* Get available dedicated vram */
     pMemoryInfo->sharedSystemMemory = get_video_memory_total();			/* Caclulate possible virtual vram */
     pMemoryInfo->curAvailableDedicatedVideoMemory = get_video_memory_free();	/* Calculate available vram */
 
