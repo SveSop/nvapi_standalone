@@ -845,7 +845,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     else
     {
         pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].bIsPresent = TRUE;
-        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency = clock_MHz * 1000;
+        pClkFreqs->domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency = (clock_MHz * 1000) * 2;    /* Reported as 2x */
         TRACE("Memory clock: %u MHz\n", clock_MHz);
     }
 
