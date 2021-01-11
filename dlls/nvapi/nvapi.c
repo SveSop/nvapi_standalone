@@ -345,9 +345,6 @@ static int get_video_memory_free(void)
     if (rc != NVML_SUCCESS)
         TRACE("(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY) failed!\n");
 
-    if (memory.free == 0)
-        memory.free = 1024 * 1024 * 1024; /* fallback: 1GB */
-
     return memory.free / 1024;
 }
 
