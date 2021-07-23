@@ -1,7 +1,8 @@
 /*
- * Top level resource file for nvcuda.dll
+ * Top level resource file for nvEncodeAPI.dll
  *
  * Copyright (C) 2014-2015 Michael Müller
+ * Copyright (C) 2021 Sveinar Søpler
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,10 +25,10 @@
 #define WINE_FILENAME_STR "nvEncodeAPI.dll"
 #define WINE_FILEDESCRIPTION_STR "NVIDIA Video Encoder API, Version 11.0"
 
-#define WINE_FILEVERSION      27,21,14,5546
-#define WINE_FILEVERSION_STR "27.21.14.5546"
+#define WINE_FILEVERSION      30,0,14,7141
+#define WINE_FILEVERSION_STR "30.0.14.7141"
 
-#define WINE_PRODUCTVERSION      27,21,14,5546
-#define WINE_PRODUCTVERSION_STR "27.21.14.5546"
+#define WINE_PRODUCTVERSION      30,0,14,7141
+#define WINE_PRODUCTVERSION_STR "30.0.14.7141"
 
 #include "wine/wine_common_ver.rc"
