@@ -2941,6 +2941,13 @@ CUresult WINAPI wine_cuD3D10GetDevice(CUdevice *pCudaDevice, IDXGIAdapter *pAdap
     return pcuDeviceGet(pCudaDevice, 0);
 }
 
+CUresult WINAPI wine_cuD3D11GetDevice(CUdevice *pCudaDevice, IDXGIAdapter *pAdapter)
+{
+    FIXME("(%p, %p) - semi-stub\n", pCudaDevice, pAdapter);
+    /* DXGI adapters don't have an OpenGL context assigned yet, otherwise we could use cuGLGetDevices */
+    return pcuDeviceGet(pCudaDevice, 0);
+}
+
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
     TRACE("(%p, %u, %p)\n", instance, reason, reserved);
