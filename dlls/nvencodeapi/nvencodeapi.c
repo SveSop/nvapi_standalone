@@ -360,11 +360,11 @@ static BOOL load_nvencode(void)
 {
     static const char *libname[] =
     {
-        "libnvidia-encode.so",
+        "libnvidia-encode.so.1",
         #ifdef __i386__
-        "/usr/lib/i386-linux-gnu/libnvidia-encode.so",
+        "/usr/lib/i386-linux-gnu/libnvidia-encode.so.1",
         #elif defined __x86_64__
-        "/usr/lib/x86_64-linux-gnu/libnvidia-encode.so",
+        "/usr/lib/x86_64-linux-gnu/libnvidia-encode.so.1",
         #endif
     };
     int i;

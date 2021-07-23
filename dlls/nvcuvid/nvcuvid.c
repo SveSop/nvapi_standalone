@@ -60,7 +60,7 @@ static void *cuvid_handle = NULL;
 
 static BOOL load_functions(void)
 {
-    cuvid_handle = dlopen("libnvcuvid.so", RTLD_NOW);
+    cuvid_handle = dlopen("libnvcuvid.so.1", RTLD_NOW);
 
     if (!cuvid_handle)
     {
