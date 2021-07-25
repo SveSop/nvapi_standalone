@@ -125,7 +125,7 @@
 @ stdcall cuGetErrorString(long ptr) wine_cuGetErrorString
 @ stdcall cuGetExportTable(ptr ptr) wine_cuGetExportTable
 @ stub cuGraphicsD3D10RegisterResource
-@ stub cuGraphicsD3D11RegisterResource
+@ stdcall cuGraphicsD3D11RegisterResource(ptr ptr long) wine_cuGraphicsD3D11RegisterResource
 @ stub cuGraphicsD3D9RegisterResource
 @ stdcall cuGraphicsGLRegisterBuffer(ptr long long) wine_cuGraphicsGLRegisterBuffer
 @ stdcall cuGraphicsGLRegisterImage(ptr long long long) wine_cuGraphicsGLRegisterImage
