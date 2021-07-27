@@ -900,6 +900,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysic
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
     *pCurrentPstate = get_nvidia_perflevel();			/* "Performance mode" read from nvml */
+    TRACE("- Current GPU pstate: %d\n", *pCurrentPstate);
     return NVAPI_OK;
 }
 
@@ -925,7 +926,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->pstates[0].pstateId = get_nvidia_perflevel();			/* Pstate from nvml */
     pPstatesInfo->pstates[0].reserved = 0;					/* These bits are reserved for future use (must be always 0) ref. NV Docs */
     pPstatesInfo->ov.numVoltages = 1;
-    TRACE("GPU pstate: %u\n", pPstatesInfo->pstates[0].pstateId);
+    TRACE("- GPU pstate: %u\n", pPstatesInfo->pstates[0].pstateId);
 
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
     if (rc != NVML_SUCCESS)
@@ -943,7 +944,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.valueRange.mindelta = -1000000;	/* Min OC */
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.valueRange.maxdelta = 1000000;	/* Max OC */
-    TRACE("Graphics clock: %u MHz\n", clock_MHz);
+    TRACE("- Graphics clock: %u MHz\n", clock_MHz);
     }
 
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
@@ -962,7 +963,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.valueRange.mindelta = -500000;	/* Min OC */
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.valueRange.maxdelta = 500000;	/* Max OC */
-    TRACE("Memory clock: %u MHz\n", clock_MHz);
+    TRACE("- Memory clock: %u MHz\n", clock_MHz);
     }
 
     return NVAPI_OK;
@@ -994,8 +995,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
     {
     pUsagesInfo->usages[0].percentage[0] = utilization.gpu;	/* This is GPU usage % */
     pUsagesInfo->usages[0].percentage[4] = utilization.memory;	/* This is Memory controller usage % */
-    TRACE("GPU utilization: %u\n", utilization.gpu);
-    TRACE("Mem utilization: %u\n", utilization.memory);
+    TRACE("- GPU utilization: %u\n", utilization.gpu);
+    TRACE("- Mem utilization: %u\n", utilization.memory);
     }
     return NVAPI_OK;
 }
@@ -1082,7 +1083,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
     else
     {
     pDynamicPstatesInfoEx->utilization[0].percentage = utilization.gpu;
-    TRACE("GPU utilization: %u\n", utilization.gpu);
+    TRACE("- GPU utilization: %u\n", utilization.gpu);
     }
     return NVAPI_OK;
 }
@@ -1145,7 +1146,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hP
     else
     {
     strcpy(szBiosRevision, version);
-    TRACE("Video BIOS version: %s\n", szBiosRevision);
+    TRACE("- Video BIOS version: %s\n", szBiosRevision);
     }
     return NVAPI_OK;
 }
@@ -1193,7 +1194,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysi
     *pDeviceId = pci.pciDeviceId; 				/* Device and vendor ID 		*/
     *pSubSystemId = pci.pciSubSystemId;				/* Subsystem ID (board manufacturer) 	*/
     *pRevisionId = 161;						/* Rev A1 				*/
-    TRACE("Device ID: %u, SubSysID: %u, RevisionID: %p\n", pci.pciDeviceId, pci.pciSubSystemId, pRevisionId);
+    TRACE("- Device ID: %u, SubSysID: %u, RevisionID: %p\n", pci.pciDeviceId, pci.pciSubSystemId, pRevisionId);
     }
     return NVAPI_OK;
 }
@@ -1212,7 +1213,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysical
     pthread_create(&tid, NULL, nvidia_settings_query_attribute, "GPUCurrentFanSpeedRPM");
 
     *pValue = nvfuncs.GPUCurrentFanSpeedRPM;
-    TRACE("Fan speed is: %u rpm\n", nvfuncs.GPUCurrentFanSpeedRPM);
+    TRACE("- Fan speed is: %u rpm\n", nvfuncs.GPUCurrentFanSpeedRPM);
 
     return NVAPI_OK;
 }
@@ -1247,7 +1248,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhys
     else
     {
     pThermalSettings->sensor[0].defaultMaxTemp = temp;			/* GPU max temp threshold */
-    TRACE("GPU Max temp: %u\n", temp);
+    TRACE("- GPU Max temp: %u\n", temp);
     }
 
     sensorType = NVML_TEMPERATURE_GPU;
@@ -1259,7 +1260,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetThermalSettings(NvPhysicalGpuHandle hPhys
     else
     {
     pThermalSettings->sensor[0].currentTemp = temp;	 		/* Current GPU Temp */
-    TRACE("GPU temp: %u\n", temp);
+    TRACE("- GPU temp: %u\n", temp);
     }
     return NVAPI_OK;
 }
@@ -1343,7 +1344,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, N
     else
     {
     *pBusId = pci.bus;
-    TRACE("PCI Bus ID: %p\n", pBusId);
+    TRACE("- PCI Bus ID: %p\n", pBusId);
     }
     if (!pBusId)
       return NVAPI_INVALID_ARGUMENT;
@@ -1365,8 +1366,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderPipeCount(NvPhysicalGpuHandle hPhys
     pthread_create(&tid, NULL, nvidia_settings_query_attribute, "[gpu:0]/CUDACores");
 
     *pShaderPipeCount = nvfuncs.CUDACores;
-    if (!pShaderPipeCount)
-      return NVAPI_INVALID_ARGUMENT;
+    TRACE("- Shader Pipes: %d\n", *pShaderPipeCount);
 
     return NVAPI_OK;
 }
@@ -1386,8 +1386,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
     pthread_create(&tid, NULL, nvidia_settings_query_attribute, "GPUMemoryInterface");
 
     *pCount = nvfuncs.CUDACores;
-    if (!pCount)
-      return NVAPI_INVALID_ARGUMENT;
+    TRACE("- Cuda Cores: %d\n", *pCount);
 
     return NVAPI_OK;
 }
@@ -1424,6 +1423,10 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
 
     if (!pMemoryInfo)
         return NVAPI_INVALID_ARGUMENT;
+
+    TRACE("- Dedicated Video Memory: %d\n", pMemoryInfo->dedicatedVideoMemory);
+    TRACE("- Current available Video Memory: %d\n", pMemoryInfo->curAvailableDedicatedVideoMemory);
+
     return NVAPI_OK;
 }
 
@@ -1490,7 +1493,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysi
     pCoolerInfo->cooler[0].target = 1;						/* GPU */
     pCoolerInfo->cooler[0].controlType = nvfuncs.GPUFanControlType;		/* Cooler Control type from nvidia-settings */
     pCoolerInfo->cooler[0].active = 1;
-    TRACE("Fanlevel: %d percent, type: %d\n", speed, nvfuncs.GPUFanControlType);
+    TRACE("- Fanlevel: %d percent, type: %d\n", speed, nvfuncs.GPUFanControlType);
     return NVAPI_OK;
 }
 
@@ -1641,10 +1644,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHand
         return NVAPI_INVALID_HANDLE;
     }
 
-    if (!pSize)
-        return NVAPI_INVALID_ARGUMENT;
-
     *pSize = get_video_memory_total();
+    TRACE("- Total video memory: %d\n", *pSize);
+
     return NVAPI_OK;
 }
 
@@ -1661,10 +1663,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
         return NVAPI_INVALID_HANDLE;
     }
 
-    if (!pSize)
-        return NVAPI_INVALID_ARGUMENT;
-
     *pSize = get_video_memory_total();
+    TRACE("- Video memory framebuffer size: %d\n", *pSize);
+
     return NVAPI_OK;
 }
 
@@ -1678,12 +1679,11 @@ static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysica
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    if (!pCount)
-        return NVAPI_INVALID_ARGUMENT;
-
     pthread_create(&tid, NULL, nvidia_settings_query_attribute, "[gpu:0]/CUDACores");
 
     *pCount = nvfuncs.CUDACores;
+    TRACE("- Cuda cores: %d\n", *pCount);
+
     return NVAPI_OK;
 }
 
