@@ -430,7 +430,8 @@ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDispl
     TRACE("(%p, %p)\n", hNvDisplay, pVersion);
 
     /* Return driver version */
-    pVersion->version = NV_DISPLAY_DRIVER_VERSION_VER;
+    if(pVersion->version != NV_DISPLAY_DRIVER_VERSION_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pVersion->bldChangeListNum = 0;
     rc = nvmlSystemGetDriverVersion(version, 16);               /* Get driver version */
     if (rc != NVML_SUCCESS) {
@@ -811,7 +812,7 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
     /* Version 1 is always the "current" clock */
     if (pClkFreqs->version == NV_GPU_CLOCK_FREQUENCIES_VER_2 ||
         pClkFreqs->version == NV_GPU_CLOCK_FREQUENCIES_VER_3)
-    {
+      {
         switch (pClkFreqs->ClockType) {
             case NV_GPU_CLOCK_FREQUENCIES_CURRENT_FREQ:
                 clockId = NVML_CLOCK_ID_CURRENT;
@@ -823,7 +824,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
                 clockId = NVML_CLOCK_ID_CUSTOMER_BOOST_MAX;
                 break;
         }
-    }
+      }
+    else
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
 
     rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
     if (rc != NVML_SUCCESS)
@@ -855,7 +858,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetAllClockFrequencies(NvPhysicalGpuHandle h
 static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetInfo(NvPhysicalGpuHandle hPhysicalGPU, NVAPI_GPU_POWER_INFO *pInfo)
 {
     TRACE("(%p, %p)\n", hPhysicalGPU, pInfo);
-    pInfo->version = NVAPI_GPU_POWER_INFO_VER;
+    if(pInfo->version != NVAPI_GPU_POWER_INFO_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pInfo->flags = 0x101;
     pInfo->entries[0].pstate = 0x0;
     pInfo->entries[0].min_power = 0xc350;
@@ -868,7 +872,8 @@ static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetInfo(NvPhysicalGpuHand
 static NvAPI_Status CDECL NvAPI_GPU_ClientPowerPoliciesGetStatus(NvPhysicalGpuHandle hPhysicalGPU, NVAPI_GPU_POWER_STATUS *pPolicies)
 {
     TRACE("(%p, %p)\n", hPhysicalGPU, pPolicies);
-    pPolicies->version = NVAPI_GPU_POWER_STATUS_VER;
+    if(pPolicies->version != NVAPI_GPU_POWER_STATUS_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pPolicies->flags = 0x1;
     pPolicies->entries[0].power = 0x186a0;			// This is target TDP.
     // Not yet implemented - Fake values for testing
@@ -879,7 +884,8 @@ static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetStatus(NvPhysicalGpuHa
 {
     TRACE("(%p, %p)\n", hPhysicalGPU, topo);
 
-    topo->version = NVAPI_GPU_POWER_TOPO_VER;
+    if(topo->version != NVAPI_GPU_POWER_TOPO_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     topo->count = 0x2;
     topo->entries[0].id = 0x0;
     topo->entries[0].power = 0x4e20;				// Current TDP
@@ -919,7 +925,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     if (!pPstatesInfo)
         return NVAPI_INVALID_ARGUMENT;
 
-    pPstatesInfo->version = NV_GPU_PERF_PSTATES20_INFO_VER1;
+    if(pPstatesInfo->version != NV_GPU_PERF_PSTATES20_INFO_VER1)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pPstatesInfo->numPstates = 4;
     pPstatesInfo->numClocks = 2;
     pPstatesInfo->numBaseVoltages = 1;
@@ -982,7 +989,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetUsages(NvPhysicalGpuHandle hPhysicalGpu, 
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    pUsagesInfo->version = NV_USAGES_INFO_V1_VER;
+    if(pUsagesInfo->version != NV_USAGES_INFO_V1_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pUsagesInfo->flags = 1;
     pUsagesInfo->usages[0].bIsPresent = 1;
 
@@ -1072,7 +1080,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle 
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    pDynamicPstatesInfoEx->version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
+    if(pDynamicPstatesInfoEx->version != NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pDynamicPstatesInfoEx->flags = 1;
     pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;
     rc = nvmlDeviceGetUtilizationRates(g_nvml.device, &utilization);
@@ -1098,7 +1107,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVoltageDomainsStatus(NvPhysicalGpuHandle 
         FIXME("invalid handle: %p\n", hPhysicalGpu);
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
-    pVoltStatus->version = NV_VOLT_STATUS_V1_VER;
+    if(pVoltStatus->version != NV_VOLT_STATUS_V1_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pVoltStatus->flags = 0;
     pVoltStatus->count = 1;
     pVoltStatus->value_uV = 0;				/* Cannot verify value at this point */
@@ -1415,7 +1425,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalG
     if (!hPhysicalGpu)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    pMemoryInfo->version = NV_DISPLAY_DRIVER_MEMORY_INFO_V3_VER;
+    if(pMemoryInfo->version != NV_DISPLAY_DRIVER_MEMORY_INFO_V3_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pMemoryInfo->dedicatedVideoMemory = get_video_memory_total();		/* Report total vram as dedicated vram */
     pMemoryInfo->availableDedicatedVideoMemory = get_video_memory_free();	/* Get available dedicated vram */
     pMemoryInfo->sharedSystemMemory = get_video_memory_total();			/* Calculate possible virtual vram */
@@ -1479,7 +1490,8 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCoolerSettings(NvPhysicalGpuHandle hPhysi
         return NVAPI_ERROR;
     }
 
-    pCoolerInfo->version = NV_GPU_COOLER_SETTINGS_VER;
+    if(pCoolerInfo->version != NV_GPU_COOLER_SETTINGS_VER)
+      return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
     pCoolerInfo->count = 1;
     pCoolerInfo->cooler[0].type = 1;						/* "Fan" type cooler */
     pCoolerInfo->cooler[0].controller = 2;					/* "Internal" controller */
