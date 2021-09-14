@@ -913,7 +913,6 @@ static NvAPI_Status CDECL NvAPI_GPU_GetCurrentPstate(NvPhysicalGpuHandle hPhysic
 static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_PERF_PSTATES20_INFO *pPstatesInfo)
 {
     nvmlReturn_t rc = NVML_SUCCESS;
-    nvmlClockId_t clockId = NVML_CLOCK_ID_CURRENT;
     unsigned int clock_MHz = 0;
     TRACE("(%p, %p)\n", hPhysicalGpu, pPstatesInfo);
 
@@ -925,9 +924,9 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     if (!pPstatesInfo)
         return NVAPI_INVALID_ARGUMENT;
 
-    if(pPstatesInfo->version != NV_GPU_PERF_PSTATES20_INFO_VER1)
+    if(pPstatesInfo->version != NV_GPU_PERF_PSTATES20_INFO_VER1 && pPstatesInfo->version != NV_GPU_PERF_PSTATES20_INFO_VER2 && pPstatesInfo->version != NV_GPU_PERF_PSTATES20_INFO_VER)
       return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
-    pPstatesInfo->numPstates = 4;
+    pPstatesInfo->numPstates = 1;
     pPstatesInfo->numClocks = 2;
     pPstatesInfo->numBaseVoltages = 1;
     pPstatesInfo->pstates[0].pstateId = get_nvidia_perflevel();			/* Pstate from nvml */
@@ -935,18 +934,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     pPstatesInfo->ov.numVoltages = 1;
     TRACE("- GPU pstate: %u\n", pPstatesInfo->pstates[0].pstateId);
 
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_GRAPHICS, clockId, &clock_MHz);
+    rc = nvmlDeviceGetMaxClockInfo(g_nvml.device, NVML_CLOCK_GRAPHICS, &clock_MHz);
     if (rc != NVML_SUCCESS)
     {
         WARN("NVML failed to query graphics clock: error %u\n", rc);
     }
     else
     {
-    pPstatesInfo->pstates[0].clocks[0].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" gpu clock */
+    pPstatesInfo->pstates[0].clocks[0].typeId = NVAPI_GPU_PERF_PSTATE20_CLOCK_TYPE_RANGE;
+    pPstatesInfo->pstates[0].clocks[0].domainId = NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS;
+    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = (clock_MHz * 1000);	/* "Max" gpu clock */
     pPstatesInfo->pstates[0].clocks[0].data.range.minFreq_kHz = 500000;
-    pPstatesInfo->pstates[0].clocks[0].data.range.maxFreq_kHz = 1500000;
-    pPstatesInfo->pstates[0].clocks[0].data.range.domainId = 0;
-    pPstatesInfo->pstates[0].clocks[0].data.range.minVoltage_uV = 1200;
+    pPstatesInfo->pstates[0].baseVoltages[0].volt_uV = 830;
+    pPstatesInfo->pstates[0].clocks[0].data.range.minVoltage_uV = 830;
     pPstatesInfo->pstates[0].clocks[0].data.range.maxVoltage_uV = 1400;
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.value = 0;				/* "OC" gpu clock - set to 0 for no OC */
     pPstatesInfo->pstates[0].clocks[0].freqDelta_kHz.valueRange.mindelta = -1000000;	/* Min OC */
@@ -954,19 +954,16 @@ static NvAPI_Status CDECL NvAPI_GPU_GetPstates20(NvPhysicalGpuHandle hPhysicalGp
     TRACE("- Graphics clock: %u MHz\n", clock_MHz);
     }
 
-    rc = nvmlDeviceGetClock(g_nvml.device, NVML_CLOCK_MEM, clockId, &clock_MHz);
+    rc = nvmlDeviceGetClockInfo(g_nvml.device, NVML_CLOCK_MEM, &clock_MHz);
     if (rc != NVML_SUCCESS)
     {
         WARN("NVML failed to query memory clock: error %u\n", rc);
     }
     else
     {
+    pPstatesInfo->pstates[0].clocks[1].typeId = NVAPI_GPU_PERF_PSTATE20_CLOCK_TYPE_SINGLE;
+    pPstatesInfo->pstates[0].clocks[1].domainId = NVAPI_GPU_PUBLIC_CLOCK_MEMORY;
     pPstatesInfo->pstates[0].clocks[1].data.single.freq_kHz = (clock_MHz * 1000);	/* "current" memory clock */
-    pPstatesInfo->pstates[0].clocks[1].data.range.minFreq_kHz = 500000;
-    pPstatesInfo->pstates[0].clocks[1].data.range.maxFreq_kHz = 1500000;
-    pPstatesInfo->pstates[0].clocks[1].data.range.domainId = 1;
-    pPstatesInfo->pstates[0].clocks[1].data.range.minVoltage_uV = 1200;
-    pPstatesInfo->pstates[0].clocks[1].data.range.maxVoltage_uV = 1400;
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.value = 0;				/* "OC" memory clock - set to 0 for no OC */
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.valueRange.mindelta = -500000;	/* Min OC */
     pPstatesInfo->pstates[0].clocks[1].freqDelta_kHz.valueRange.maxdelta = 500000;	/* Max OC */
