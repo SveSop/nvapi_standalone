@@ -18,7 +18,6 @@
  */
 
 #include "config.h"
-#include "wine/port.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -55,7 +54,7 @@ void cuda_process_tls_callbacks(DWORD reason)
 {
     struct list *ptr;
 
-    TRACE("(%d)\n", reason);
+    TRACE("(%ld)\n", (SIZE_T)reason);
 
     if (reason != DLL_THREAD_DETACH)
         return;

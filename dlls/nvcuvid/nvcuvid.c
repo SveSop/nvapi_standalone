@@ -17,7 +17,7 @@
  */
 
 #include "config.h"
-#include "wine/port.h"
+#include <dlfcn.h>
 
 #include <stdarg.h>
 
@@ -292,7 +292,7 @@ CUresult WINAPI wine_cuvidCreateVideoSource(CUvideosource *pObj, const char *psz
     source = HeapAlloc(GetProcessHeap(), 0, sizeof(*source));
     if (!source)
     {
-        HeapFree(GetProcessHeap(), 0, &unix_name);
+        HeapFree(GetProcessHeap(), 0, unix_name);
         return CUDA_ERROR_OUT_OF_MEMORY;
     }
 
@@ -314,7 +314,7 @@ CUresult WINAPI wine_cuvidCreateVideoSource(CUvideosource *pObj, const char *psz
     fake_params.pUserData = source;
 
     ret = pcuvidCreateVideoSource((void *)&source->orig_source, unix_name, &fake_params);
-    HeapFree(GetProcessHeap(), 0, &unix_name);
+    HeapFree(GetProcessHeap(), 0, unix_name);
 
     if (ret)
     {
@@ -494,7 +494,7 @@ CUresult WINAPI wine_cuvidUnmapVideoFrame64(CUvideodecoder hDecoder, unsigned lo
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
-    TRACE("(%p, %u, %p)\n", instance, reason, reserved);
+    TRACE("(%p, %lu, %p)\n", instance, (SIZE_T)reason, reserved);
 
     switch (reason)
     {

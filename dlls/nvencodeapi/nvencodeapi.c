@@ -17,7 +17,7 @@
  */
 
 #include "config.h"
-#include "wine/port.h"
+#include <dlfcn.h>
 
 #include <stdarg.h>
 
@@ -393,7 +393,7 @@ static BOOL load_nvencode(void)
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
-    TRACE("(%p, %u, %p)\n", instance, reason, reserved);
+    TRACE("(%p, %lu, %p)\n", instance, (SIZE_T)reason, reserved);
 
     switch (reason)
     {
