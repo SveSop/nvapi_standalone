@@ -19,6 +19,16 @@
 #ifndef __WINE_CUDA_H
 #define __WINE_CUDA_H
 
+#include <stdint.h>
+typedef uint32_t cuuint32_t;
+typedef uint64_t cuuint64_t;
+
+#ifdef _WIN32
+#define CUDA_CB __stdcall
+#else
+#define CUDA_CB
+#endif
+
 #define CUDA_SUCCESS                0
 #define CUDA_ERROR_INVALID_VALUE    1
 #define CUDA_ERROR_OUT_OF_MEMORY    2
@@ -31,15 +41,25 @@
 #define CU_IPC_HANDLE_SIZE          64
 
 #if defined(__x86_64) || defined(AMD64) || defined(_M_AMD64) || defined(__aarch64__)
-typedef unsigned long long CUdeviceptr;
+typedef unsigned long long CUdeviceptr_v2;
 #else
-typedef unsigned int CUdeviceptr;
+typedef unsigned int CUdeviceptr_v2;
 #endif
+typedef CUdeviceptr_v2 CUdeviceptr;
 
+typedef enum CUdriverProcAddressQueryResult_enum {
+    CU_GET_PROC_ADDRESS_SUCCESS                = 0,
+    CU_GET_PROC_ADDRESS_SYMBOL_NOT_FOUND       = 1,
+    CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT = 2
+}  CUdriverProcAddressQueryResult;
+
+typedef unsigned long long CUmemGenericAllocationHandle_v1;
+typedef CUmemGenericAllocationHandle_v1 CUmemGenericAllocationHandle;
 typedef int CUGLDeviceList;
 typedef int CUaddress_mode;
 typedef int CUarray_format;
-typedef int CUdevice;
+typedef int CUdevice_v1;
+typedef CUdevice_v1 CUdevice;
 typedef int CUdevice_attribute;
 typedef int CUfilter_mode;
 typedef int CUfunc_cache;
@@ -54,6 +74,12 @@ typedef int CUresourceViewFormat;
 typedef int CUresourcetype;
 typedef int CUresult;
 typedef int CUsharedconfig;
+typedef int CUstreamCaptureStatus;
+typedef int CUstreamCaptureMode;
+typedef int CUgraphMem_attribute;
+typedef int CUmemPool_attribute;
+typedef int CUmemAllocationGranularity_flags;
+typedef int CUmemRangeHandleType;
 
 typedef void *CUDA_ARRAY3D_DESCRIPTOR;
 typedef void *CUDA_ARRAY_DESCRIPTOR;
@@ -63,6 +89,7 @@ typedef void *CUDA_MEMCPY3D_PEER;
 typedef void *CUDA_RESOURCE_DESC;
 typedef void *CUDA_RESOURCE_VIEW_DESC;
 typedef void *CUDA_TEXTURE_DESC;
+typedef void *CUDA_NODE_PARAMS;
 typedef void *CUarray;
 typedef void *CUcontext;
 typedef void *CUdevprop;
@@ -75,6 +102,14 @@ typedef void *CUmodule;
 typedef void *CUstream;
 typedef void *CUsurfref;
 typedef void *CUtexref;
+typedef void *CUgraph;
+typedef void *CUgraphExec;
+typedef void *CUgraphNode;
+typedef void *CUmemoryPool;
+typedef void *CUmemAllocationProp;
+typedef void *CUmoduleLoadingMode;
+typedef void (CUDA_CB *CUhostFn)(void *userData);
+typedef void *CUlaunchConfig;
 
 typedef unsigned long long CUsurfObject;
 typedef unsigned long long CUtexObject;

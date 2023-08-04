@@ -18,7 +18,7 @@
  */
 
 #include "config.h"
-#include "wine/port.h"
+#include <dlfcn.h>
 
 #include <stdarg.h>
 #include <assert.h>
@@ -2943,7 +2943,7 @@ CUresult WINAPI wine_cuD3D10GetDevice(CUdevice *pCudaDevice, IDXGIAdapter *pAdap
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
-    TRACE("(%p, %u, %p)\n", instance, reason, reserved);
+    TRACE("(%p, %lu, %p)\n", instance, (SIZE_T)reason, reserved);
 
     switch (reason)
     {

@@ -19,7 +19,7 @@
  */
 
 #include "config.h"
-#include "wine/port.h"
+#include <dlfcn.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -1215,7 +1215,7 @@ BOOL nvapi_shutdown_nvml(void)
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
-    TRACE("(%p, %u, %p)\n", instance, reason, reserved);
+    TRACE("(%p, %lu, %p)\n", instance, (SIZE_T)reason, reserved);
     switch (reason)
     {
         case DLL_PROCESS_ATTACH:
