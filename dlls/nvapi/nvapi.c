@@ -449,7 +449,7 @@ static NvAPI_Status CDECL NvAPI_GetPhysicalGPUsFromDisplay(NvDisplayHandle hNvDi
 
 static NvAPI_Status CDECL NvAPI_Stereo_Disable(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
@@ -507,8 +507,20 @@ static NvAPI_Status CDECL NvAPI_Stereo_SetSeparation(StereoHandle stereoHandle, 
 
 static NvAPI_Status CDECL NvAPI_Stereo_Enable(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_STEREO_NOT_INITIALIZED;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetBrandType(void)
+{
+    TRACE("() - Stub\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetMemPartitionMask(void)
+{
+    TRACE("() - Stub\n");
+    return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_D3D9_StretchRectEx(IDirect3DDevice9 *pDevice, IDirect3DResource9 *pSourceResource,
@@ -740,6 +752,14 @@ static NvAPI_Status CDECL NvAPI_GPU_QueryActiveApps(NvDisplayHandle hNvDisp, NV_
     pActiveApps[0].processPID = 1000;				/* Fake PID of app			*/
     strcpy(pActiveApps[0].processName, "Wine Desktop.exe");	/* Fake appname				*/
     *pTotal = 1;						/* Total number of active 3D apps	*/
+    return NVAPI_OK;
+}
+
+/* Unknown structure to this call */
+static NvAPI_Status CDECL NvAPI_GPU_QueryActiveAppsEx(NvDisplayHandle hNvDisp, void *pActiveApps, NvU32 *pTotal)
+{
+    TRACE("(%p, %p, %p)\n", hNvDisp, pActiveApps, pTotal);
+    *pTotal = 1;                                                /* Total number of active 3D apps       */
     return NVAPI_OK;
 }
 
@@ -994,6 +1014,26 @@ static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hP
         return NVAPI_ERROR;
     }
     *pLocation = 1;						/* 1 = "GPU Dedicated" */
+    return NVAPI_OK;
+}
+
+/* Get BusWidth */
+static NvAPI_Status CDECL NvAPI_GPU_GetRamBusWidth(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusWidth)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pBusWidth);
+
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    if(nvidia_settings_query_attribute("GPUMemoryInterface", pBusWidth))
+    {
+        ERR("nvidia-settings query failed!\n");
+        return NVAPI_ERROR;
+    }
     return NVAPI_OK;
 }
 
@@ -1350,7 +1390,26 @@ static NvAPI_Status CDECL NvAPI_GPU_GetShaderSubPipeCount(NvPhysicalGpuHandle hP
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
     }
 
-    if(nvidia_settings_query_attribute("GPUMemoryInterface", pCount))
+    if(nvidia_settings_query_attribute("[gpu:0]/CUDACores", pCount))
+    {
+        ERR("nvidia-settings query failed!\n");
+        return NVAPI_ERROR;
+    }
+    return NVAPI_OK;
+}
+
+/* Another that i dont quite understand - Cuda cores vs SM units? */
+static NvAPI_Status CDECL NvAPI_GPU_GetTotalSMCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSmCount)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu,  pSmCount);
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+    }
+
+    if(nvidia_settings_query_attribute("[gpu:0]/CUDACores", pSmCount))
     {
         ERR("nvidia-settings query failed!\n");
         return NVAPI_ERROR;
@@ -1484,125 +1543,148 @@ static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResou
 
 static NvAPI_Status CDECL NvAPI_GPU_ClientPowerTopologyGetInfo(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPCIEInfo(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetShortName(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_SetRefreshRateOverride(void)
 {
-    TRACE("()\n");
-    return NVAPI_OK;
+    TRACE("() - Stub\n");
+    return NVAPI_ERROR;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_ClientFanCoolersGetStatus(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPartitionCount(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetTotalTPCCount(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetTotalSPCount(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetTPCMask(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_PerfPoliciesGetInfo(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPerfClocks(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_EnableDynamicPstates(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_PerfPoliciesGetStatus(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_ClientFanCoolersGetInfo(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GetPhysicalGPUFromDisplay(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_PhysxQueryRecommendedState(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 /* Deprecated */
 static NvAPI_Status CDECL NvAPI_GPU_GetAllClocks(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_INVALID_ARGUMENT;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetManufacturingInfo(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetTargetID(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GPU_GetCurrentVoltage(void)
 {
-    TRACE("()\n");
+    TRACE("() - Stub\n");
     return NVAPI_OK;
 }
 
+static NvAPI_Status CDECL NvAPI_GPU_GetRasterBackendCount(void)
+{
+    TRACE("() - Stub\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetGPUInfo(void)
+{
+    TRACE("() - Stub\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetArchInfo(void)
+{
+    TRACE("() - Stub\n");
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_SYS_GetDisplayDriverInfo(void)
+{
+    TRACE("() - Stub\n");
+    return NVAPI_OK;
+}
 
 static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSize)
 {
@@ -1892,6 +1974,17 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x1ea54a3b, NvAPI_GPU_GetPerfClocks},
         {0x3d358a0c, NvAPI_GPU_PerfPoliciesGetStatus},
         {0x465f9bcf, NvAPI_GPU_GetCurrentVoltage},
+        {0x052d0709, NvAPI_GPU_GetBrandType},
+        {0x7975c581, NvAPI_GPU_GetRamBusWidth},
+        {0x329d77cd, NvAPI_GPU_GetMemPartitionMask},
+        {0xae5fbcfe, NvAPI_GPU_GetTotalSMCount},
+        {0xfdc129fa, NvAPI_GPU_GetRasterBackendCount},
+        {0xafd1b02c, NvAPI_GPU_GetGPUInfo},
+        {0xd8265d24, NvAPI_GPU_GetArchInfo},
+        {0xc0599498, NULL}, // Unknown call
+        {0xd7c61344, NULL}, // Unknown call
+        {0x655dcd32, NvAPI_GPU_QueryActiveAppsEx},
+        {0x721faceb, NvAPI_SYS_GetDisplayDriverInfo},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
