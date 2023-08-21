@@ -1466,17 +1466,19 @@ static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu,
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
     *pRamType = 14;				/* No similar function in nvml, so "type = 14" is GDDR6 "type = 8" is GDDR5 */
+    TRACE("Faking GDDR6 as ramtype\n");
     return NVAPI_OK;
 }
 
-static NvAPI_Status CDECL NvAPI_GPU_GetRamMaker(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pRamMaker)
+static NvAPI_Status CDECL NvAPI_GPU_GetRamVendorID(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pID)
 {
-    TRACE("(%p, %p)\n", hPhysicalGpu, pRamMaker);
+    TRACE("(%p, %p)\n", hPhysicalGpu, pID);
 
     if (!hPhysicalGpu)
         return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
 
-    *pRamMaker = 0;                              /* Undocumented function. nvml cannot get brand/maker. 0 = "unknown" */
+    *pID = 10;                                  /* Undocumented function. nvml cannot get brand/maker. 10 = "MICRON" */
+    TRACE("Faking MICRON as ramvendor\n");
     return NVAPI_OK;
 }
 
@@ -1957,7 +1959,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0xa4dfd3f2, NvAPI_GPU_ClientPowerTopologyGetInfo},
         {0x70916171, NvAPI_GPU_ClientPowerPoliciesGetStatus},
         {0x34206d86, NvAPI_GPU_ClientPowerPoliciesGetInfo},
-        {0x42aea16a, NvAPI_GPU_GetRamMaker},
+        {0x42aea16a, NvAPI_GPU_GetRamVendorID},
         {0xba94c56e, NULL}, // This function is deprecated > release 304 ref nVidia docs
         {0x65b1c5f5, NvAPI_GPU_QueryActiveApps},
         {0x1bb18724, NvAPI_GPU_GetBusType},
