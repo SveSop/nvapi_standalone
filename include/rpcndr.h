@@ -40,7 +40,6 @@ extern "C" {
 #ifndef EXTERN_GUID
 #ifdef __cplusplus
 #define EXTERN_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
-        EXTERN_C const GUID DECLSPEC_SELECTANY name DECLSPEC_HIDDEN; \
         EXTERN_C const GUID DECLSPEC_SELECTANY name = \
 	{ l, w1, w2, { b1, b2,  b3,  b4,  b5,  b6,  b7,  b8 } }
 #else
@@ -82,8 +81,8 @@ typedef unsigned char boolean;
 #define midl_user_free MIDL_user_free
 #define midl_user_allocate MIDL_user_allocate
 
-void * __RPC_USER MIDL_user_allocate(SIZE_T);
 void __RPC_USER MIDL_user_free(void *);
+void * __RPC_USER MIDL_user_allocate(SIZE_T) __WINE_ALLOC_SIZE(1) __WINE_DEALLOC(MIDL_user_free) __WINE_MALLOC;
 
 #define NdrFcShort(s) (unsigned char)(s & 0xff), (unsigned char)(s >> 8)
 #define NdrFcLong(s)  (unsigned char)(s & 0xff), (unsigned char)((s & 0x0000ff00) >> 8), \
@@ -357,7 +356,7 @@ typedef struct _MIDL_SYNTAX_INFO
 
 typedef void (__RPC_API *STUB_THUNK)( PMIDL_STUB_MESSAGE );
 
-#ifdef WINE_STRICT_PROTOTYPES
+#ifndef WINE_NO_STRICT_PROTOTYPES
 typedef LONG (__RPC_API *SERVER_ROUTINE)(void);
 #else
 typedef LONG (__RPC_API *SERVER_ROUTINE)();
@@ -658,7 +657,7 @@ RPCRTAPI LONG RPC_ENTRY
   NdrDcomAsyncStubCall( struct IRpcStubBuffer* pThis, struct IRpcChannelBuffer* pChannel, PRPC_MESSAGE pRpcMsg, DWORD * pdwStubPhase );
 
 RPCRTAPI void* RPC_ENTRY
-  NdrAllocate( PMIDL_STUB_MESSAGE pStubMsg, SIZE_T Len ) __WINE_ALLOC_SIZE(2);
+  NdrAllocate( PMIDL_STUB_MESSAGE pStubMsg, SIZE_T Len ) __WINE_ALLOC_SIZE(2) __WINE_MALLOC;
 
 RPCRTAPI void RPC_ENTRY
   NdrClearOutParameters( PMIDL_STUB_MESSAGE pStubMsg, PFORMAT_STRING pFormat, void *ArgAddr );
@@ -667,10 +666,10 @@ RPCRTAPI RPC_STATUS RPC_ENTRY
   NdrMapCommAndFaultStatus( PMIDL_STUB_MESSAGE pStubMsg, ULONG *pCommStatus,
                             ULONG *pFaultStatus, RPC_STATUS Status_ );
 
-RPCRTAPI void* RPC_ENTRY
-  NdrOleAllocate( SIZE_T Size ) __WINE_ALLOC_SIZE(1);
 RPCRTAPI void RPC_ENTRY
   NdrOleFree( void* NodeToFree );
+RPCRTAPI void* RPC_ENTRY
+  NdrOleAllocate( SIZE_T Size ) __WINE_ALLOC_SIZE(1) __WINE_DEALLOC(NdrOleFree) __WINE_MALLOC;
 
 RPCRTAPI void RPC_ENTRY
   NdrClientInitialize( PRPC_MESSAGE pRpcMessage, PMIDL_STUB_MESSAGE pStubMsg,
@@ -728,14 +727,14 @@ RPCRTAPI void RPC_ENTRY
   NdrRpcSsDisableAllocate( PMIDL_STUB_MESSAGE pMessage );
 RPCRTAPI void RPC_ENTRY
   NdrRpcSmSetClientToOsf( PMIDL_STUB_MESSAGE pMessage );
-RPCRTAPI void * RPC_ENTRY
-  NdrRpcSmClientAllocate( SIZE_T Size ) __WINE_ALLOC_SIZE(1);
 RPCRTAPI void RPC_ENTRY
   NdrRpcSmClientFree( void *NodeToFree );
 RPCRTAPI void * RPC_ENTRY
-  NdrRpcSsDefaultAllocate( SIZE_T Size ) __WINE_ALLOC_SIZE(1);
+  NdrRpcSmClientAllocate( SIZE_T Size ) __WINE_ALLOC_SIZE(1) __WINE_DEALLOC(NdrRpcSmClientFree) __WINE_MALLOC;
 RPCRTAPI void RPC_ENTRY
   NdrRpcSsDefaultFree( void *NodeToFree );
+RPCRTAPI void * RPC_ENTRY
+  NdrRpcSsDefaultAllocate( SIZE_T Size ) __WINE_ALLOC_SIZE(1) __WINE_DEALLOC(NdrRpcSsDefaultFree) __WINE_MALLOC;
 
 RPCRTAPI RPC_STATUS RPC_ENTRY
   NdrGetUserMarshalInfo( ULONG *pFlags, ULONG InformationLevel, NDR_USER_MARSHAL_INFO *pMarshalInfo );
